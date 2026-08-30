@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#131311" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
 <meta name="description" content="Registra lo que comes con una foto: calorías y macronutrientes estimados, y un diario que funciona sin conexión.">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icons/icon-192.png">
@@ -12,31 +12,45 @@
 <title>NutriFoto</title>
 <style>
 /* ─────────────────────────────────────────────────────────────────────────
+   Poppins, empaquetada con la app. Va en archivos locales y no enlazada a
+   Google Fonts a proposito: dentro del APK no hay red garantizada, y una
+   fuente que no carga cambia la app entera de aspecto.
+   ───────────────────────────────────────────────────────────────────────── */
+@font-face{font-family:Poppins; font-style:normal; font-weight:400; font-display:swap;
+  src:url('vendor/poppins-400.woff2') format('woff2')}
+@font-face{font-family:Poppins; font-style:normal; font-weight:500; font-display:swap;
+  src:url('vendor/poppins-500.woff2') format('woff2')}
+@font-face{font-family:Poppins; font-style:normal; font-weight:600; font-display:swap;
+  src:url('vendor/poppins-600.woff2') format('woff2')}
+@font-face{font-family:Poppins; font-style:normal; font-weight:700; font-display:swap;
+  src:url('vendor/poppins-700.woff2') format('woff2')}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Paleta. Se define entera en :root (claro) y se redefine en oscuro, para
    que el tema manual (data-tema) y el del sistema convivan sin pelearse.
    ───────────────────────────────────────────────────────────────────────── */
 :root{
-  --fondo:#faf7f2; --superficie:#ffffff; --superficie-2:#f3efe8;
-  --texto:#23201c; --apagado:#7a736a; --borde:#e8e1d7;
-  --acento:#2f7a5b; --acento-suave:#e4f1ea;
-  --prot:#3b7dd8; --carb:#d98324; --gras:#b5559b;
-  --alerta:#b4533a; --sombra:0 1px 2px rgba(35,32,28,.06), 0 8px 24px rgba(35,32,28,.06);
-  --r:16px; --r-s:10px;
+  --fondo:#f9fafb; --superficie:#ffffff; --superficie-2:#f3f4f6;
+  --texto:#111827; --apagado:#6b7280; --borde:#e5e7eb;
+  --acento:#22c55e; --acento-hondo:#10b981; --acento-suave:#dcfce7;
+  --prot:#22c55e; --carb:#0ea5e9; --gras:#f59e0b;
+  --alerta:#ef4444; --sombra:0 1px 2px rgba(17,24,39,.04), 0 8px 24px rgba(17,24,39,.06);
+  --r:18px; --r-s:12px;
 }
-:root[data-tema="oscuro"], html:not([data-tema="claro"]) body.sistema-oscuro{
-  --fondo:#131311; --superficie:#1d1c19; --superficie-2:#26241f;
-  --texto:#f0ebe3; --apagado:#9a938a; --borde:#302e29;
-  --acento:#5fcf9f; --acento-suave:#1d2c26;
-  --prot:#74a9f5; --carb:#efaa5c; --gras:#dd8ac9;
-  --alerta:#e08a70; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+:root[data-tema="oscuro"]{
+  --fondo:#111827; --superficie:#1b2434; --superficie-2:#273142;
+  --texto:#f3f4f6; --apagado:#9ca3af; --borde:#2e394b;
+  --acento:#34d399; --acento-hondo:#10b981; --acento-suave:#14311f;
+  --prot:#4ade80; --carb:#38bdf8; --gras:#fbbf24;
+  --alerta:#f87171; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-tema="claro"]){
-    --fondo:#131311; --superficie:#1d1c19; --superficie-2:#26241f;
-    --texto:#f0ebe3; --apagado:#9a938a; --borde:#302e29;
-    --acento:#5fcf9f; --acento-suave:#1d2c26;
-    --prot:#74a9f5; --carb:#efaa5c; --gras:#dd8ac9;
-    --alerta:#e08a70; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    --fondo:#111827; --superficie:#1b2434; --superficie-2:#273142;
+    --texto:#f3f4f6; --apagado:#9ca3af; --borde:#2e394b;
+    --acento:#34d399; --acento-hondo:#10b981; --acento-suave:#14311f;
+    --prot:#4ade80; --carb:#38bdf8; --gras:#fbbf24;
+    --alerta:#f87171; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
   }
 }
 
@@ -44,9 +58,9 @@
 html,body{margin:0; padding:0}
 body{
   background:var(--fondo); color:var(--texto);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
-  font-size:16px; line-height:1.45; overscroll-behavior-y:none;
-  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+  font-family:Poppins,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  font-size:15.5px; line-height:1.45; overscroll-behavior-y:none;
+  padding-bottom:calc(88px + env(safe-area-inset-bottom));
 }
 h1,h2,h3{margin:0; font-weight:650; letter-spacing:-.01em}
 button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
@@ -59,7 +73,7 @@ header{
   padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
   border-bottom:1px solid var(--borde); display:flex; align-items:center; gap:10px;
 }
-header .marca{font-size:17px; font-weight:700; letter-spacing:-.02em; flex:1}
+header .marca{font-size:18px; font-weight:700; letter-spacing:-.02em}
 header .marca span{color:var(--acento)}
 .icono-btn{
   width:38px; height:38px; border-radius:50%; display:grid; place-items:center;
@@ -79,29 +93,35 @@ main{padding:14px 16px 0; max-width:640px; margin:0 auto}
 .pequeno{font-size:13px}
 .mini{font-size:12px}
 
-/* ── Navegación de fecha ──────────────────────────────────────────────── */
-.nav-fecha{display:flex; align-items:center; gap:6px; margin-bottom:12px}
-.nav-fecha button{
-  width:34px; height:34px; border-radius:var(--r-s); background:var(--superficie);
-  border:1px solid var(--borde); display:grid; place-items:center;
+/* ── Tira de días de la semana ────────────────────────────────────────── */
+.semana{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+.dias{flex:1; display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+.dia{
+  display:grid; justify-items:center; gap:2px; padding:6px 0; border-radius:12px;
+  font-size:11px; color:var(--apagado); font-weight:500; border:1px solid transparent;
 }
-.nav-fecha .etiqueta{flex:1; text-align:center; font-weight:600; font-size:15px; position:relative}
-.nav-fecha input[type=date]{
-  position:absolute; inset:0; opacity:0; width:100%; height:100%; border:0;
+.dia b{font-size:14.5px; font-weight:600; color:var(--texto)}
+.dia.hoy{border-color:var(--borde)}
+.dia.activo{background:var(--acento); color:#fff}
+.dia.activo b{color:#fff}
+.dia.futuro{opacity:.4}
+#abrir-calendario{position:relative; flex:none}
+#abrir-calendario input[type=date]{
+  position:absolute; inset:0; opacity:0; width:100%; height:100%; border:0; padding:0;
 }
 
 /* ── Anillo de calorías ───────────────────────────────────────────────── */
-.resumen{display:flex; align-items:center; gap:18px}
-.anillo{position:relative; width:124px; height:124px; flex:none}
-.anillo svg{transform:rotate(-90deg); width:124px; height:124px}
-.anillo circle{fill:none; stroke-width:11; stroke-linecap:round}
+.resumen{display:flex; align-items:flex-start; gap:14px}
+.cifra-grande{display:flex; align-items:baseline; gap:6px; margin-top:2px}
+.cifra-grande b{font-size:31px; font-weight:700; letter-spacing:-.03em; line-height:1.1}
+.cifra-grande span{font-size:13.5px; font-weight:500}
+.anillo{position:relative; width:78px; height:78px; flex:none}
+.anillo svg{transform:rotate(-90deg); width:78px; height:78px}
+.anillo circle{fill:none; stroke-width:9; stroke-linecap:round}
 .anillo .pista{stroke:var(--superficie-2)}
 .anillo .valor{stroke:var(--acento); transition:stroke-dasharray .5s ease}
-.anillo .centro{
-  position:absolute; inset:0; display:grid; place-content:center; text-align:center;
-}
-.anillo .centro b{font-size:26px; font-weight:700; letter-spacing:-.03em; display:block; line-height:1.1}
-.anillo .centro small{font-size:11px; color:var(--apagado)}
+.anillo .centro{position:absolute; inset:0; display:grid; place-content:center; text-align:center}
+.anillo .centro b{font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--acento)}
 
 .macros{flex:1; display:grid; gap:10px}
 .macro .fila{justify-content:space-between; margin-bottom:3px}
@@ -116,7 +136,7 @@ main{padding:14px 16px 0; max-width:640px; margin:0 auto}
 .comida > .cabeza{
   display:flex; align-items:center; gap:8px; padding:0 4px 6px;
 }
-.comida .cabeza h3{font-size:14px; flex:1; color:var(--apagado); text-transform:uppercase; letter-spacing:.06em; font-size:11.5px}
+.comida .cabeza h3{flex:1; color:var(--apagado); text-transform:uppercase; letter-spacing:.05em; font-size:11px; font-weight:600}
 .comida .cabeza .kcal{font-size:13px; color:var(--apagado); font-variant-numeric:tabular-nums}
 .comida .cabeza .mas{
   width:26px; height:26px; border-radius:50%; background:var(--superficie-2);
@@ -149,7 +169,7 @@ main{padding:14px 16px 0; max-width:640px; margin:0 auto}
   font-size:11.5px; font-weight:600; background:var(--superficie-2); color:var(--apagado);
 }
 .chip.alta{background:var(--acento-suave); color:var(--acento)}
-.chip.media{background:color-mix(in srgb, var(--carb) 16%, transparent); color:var(--carb)}
+.chip.media{background:color-mix(in srgb, var(--gras) 16%, transparent); color:var(--gras)}
 .chip.baja{background:color-mix(in srgb, var(--alerta) 16%, transparent); color:var(--alerta)}
 
 /* ── Botones ──────────────────────────────────────────────────────────── */
@@ -158,9 +178,7 @@ main{padding:14px 16px 0; max-width:640px; margin:0 auto}
   padding:12px 18px; border-radius:var(--r-s); font-weight:600; font-size:15px;
   background:var(--superficie-2); border:1px solid var(--borde);
 }
-.btn.principal{background:var(--acento); color:#fff; border-color:transparent}
-:root[data-tema="oscuro"] .btn.principal, html:not([data-tema="claro"]) body.sistema-oscuro .btn.principal{color:#0f1a15}
-@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]) .btn.principal{color:#0f1a15}}
+.btn.principal{background:var(--acento); color:#fff; border-color:transparent; font-weight:600}
 .btn.ancho{width:100%}
 .btn.sutil{background:transparent; border-color:transparent; color:var(--apagado); padding:8px 10px}
 .btn:disabled{opacity:.5}
@@ -174,16 +192,26 @@ nav.inferior{
   padding:6px 4px calc(6px + env(safe-area-inset-bottom));
 }
 nav.inferior button{
-  display:grid; justify-items:center; gap:2px; padding:6px 0; color:var(--apagado);
-  font-size:10.5px; font-weight:600;
+  display:grid; justify-items:center; gap:3px; padding:6px 0; color:var(--apagado);
+  font-size:10.5px; font-weight:500;
 }
-nav.inferior button.activo{color:var(--acento)}
-nav.inferior button .ico{font-size:20px; line-height:1}
+nav.inferior button.activo{color:var(--acento); font-weight:600}
+nav.inferior button.fab{color:#fff}
+nav.inferior button .ico{width:22px; height:22px}
+
+/* Todos los iconos comparten trazo: se dibujan sin relleno y con la punta redonda. */
+svg.ico{width:22px; height:22px; flex:none}
+.icono-btn svg.ico{width:19px; height:19px}
+svg.ico, .fab svg, .tarjeta-accion svg{
+  fill:none; stroke:currentColor; stroke-width:1.8;
+  stroke-linecap:round; stroke-linejoin:round;
+}
 .fab{
-  width:56px; height:56px; border-radius:50%; background:var(--acento); color:#fff;
-  display:grid; place-items:center; font-size:25px; justify-self:center;
-  margin-top:-22px; box-shadow:0 6px 18px color-mix(in srgb, var(--acento) 45%, transparent);
+  width:58px; height:58px; border-radius:50%; background:var(--acento); color:#fff;
+  display:grid; place-items:center; justify-self:center;
+  margin-top:-24px; box-shadow:0 8px 20px color-mix(in srgb, var(--acento) 45%, transparent);
 }
+.fab svg{width:26px; height:26px}
 
 /* ── Capas (pantallas completas) ──────────────────────────────────────── */
 .capa{
@@ -214,8 +242,6 @@ textarea{resize:vertical; min-height:64px}
   background:var(--superficie); font-size:13.5px; font-weight:600;
 }
 .opciones button[aria-pressed="true"]{background:var(--acento); color:#fff; border-color:transparent}
-:root[data-tema="oscuro"] .opciones button[aria-pressed="true"]{color:#0f1a15}
-@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]) .opciones button[aria-pressed="true"]{color:#0f1a15}}
 
 /* ── Revisión de la foto ──────────────────────────────────────────────── */
 .foto-grande{
@@ -243,6 +269,12 @@ textarea{resize:vertical; min-height:64px}
 .item .resultado b{color:var(--texto)}
 .borrar{color:var(--apagado); font-size:19px; line-height:1; padding:0 2px}
 
+
+.total-plato{padding:14px 16px}
+.macros-linea{display:flex; gap:16px; margin-top:8px; font-size:12.5px; color:var(--apagado); flex-wrap:wrap}
+.macros-linea span{display:inline-flex; align-items:center; gap:5px}
+.macros-linea i{width:8px; height:8px; border-radius:50%; display:inline-block}
+.macros-linea b{color:var(--texto); font-weight:600}
 
 /* ── Cargando ─────────────────────────────────────────────────────────── */
 .cargando{display:grid; place-items:center; gap:14px; padding:36px 20px; text-align:center}
@@ -310,7 +342,10 @@ canvas{width:100%; height:auto; display:block}
 <body>
 
 <header>
-  <div class="marca">Nutri<span>Foto</span></div>
+  <div style="flex:1; min-width:0">
+    <div class="marca" id="titulo-cabecera">Nutri<span>Foto</span></div>
+    <div class="mini apagado" id="subtitulo-cabecera"></div>
+  </div>
   <button class="icono-btn" id="btn-tema" title="Cambiar entre claro y oscuro">◐</button>
 </header>
 
@@ -318,29 +353,36 @@ canvas{width:100%; height:auto; display:block}
 
   <!-- ─────────────────────────────── DIARIO ─────────────────────────────── -->
   <section id="vista-inicio">
-    <div class="nav-fecha">
-      <button id="dia-antes" aria-label="Día anterior">‹</button>
-      <div class="etiqueta">
-        <span id="etiqueta-fecha">Hoy</span>
+    <div class="semana">
+      <div class="dias" id="tira-dias"></div>
+      <button class="icono-btn" id="abrir-calendario" aria-label="Elegir fecha">
+        <svg class="ico"><use href="#i-diario"/></svg>
         <input type="date" id="selector-fecha" aria-label="Elegir fecha">
-      </div>
-      <button id="dia-despues" aria-label="Día siguiente">›</button>
+      </button>
     </div>
+    <div class="pequeno apagado" id="etiqueta-fecha" style="margin:2px 2px 12px; font-weight:600">Hoy</div>
 
     <div class="tarjeta">
       <div class="resumen">
-        <div class="anillo">
-          <svg viewBox="0 0 124 124" aria-hidden="true">
-            <circle class="pista" cx="62" cy="62" r="52"></circle>
-            <circle class="valor" id="anillo-valor" cx="62" cy="62" r="52"
-                    stroke-dasharray="0 327" ></circle>
-          </svg>
-          <div class="centro">
+        <div style="flex:1; min-width:0">
+          <div class="mini apagado" style="font-weight:600">Calorías de hoy</div>
+          <div class="cifra-grande">
             <b id="kcal-consumidas">0</b>
-            <small id="kcal-meta">de 0 kcal</small>
+            <span class="apagado" id="kcal-meta">/ 0 kcal</span>
           </div>
+          <div class="mini apagado" style="margin-top:8px; font-weight:600">Restantes</div>
+          <div id="restante" style="font-size:17px; font-weight:600"></div>
         </div>
-        <div class="macros">
+        <div class="anillo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="pista" cx="50" cy="50" r="42"></circle>
+            <circle class="valor" id="anillo-valor" cx="50" cy="50" r="42"
+                    stroke-dasharray="0 264" ></circle>
+          </svg>
+          <div class="centro"><b id="porcentaje-dia">0%</b></div>
+        </div>
+      </div>
+      <div class="macros" style="margin-top:16px">
           <div class="macro m-prot">
             <div class="fila entre"><span class="nombre">Proteína</span><span class="cifra" id="cifra-prot">0 / 0 g</span></div>
             <div class="barra"><i id="barra-prot" style="width:0%"></i></div>
@@ -358,6 +400,7 @@ canvas{width:100%; height:auto; display:block}
       <div class="pequeno apagado" id="restante" style="margin-top:12px"></div>
     </div>
 
+    <h2 style="font-size:14.5px; margin:18px 2px 10px" id="titulo-comidas">Comidas de hoy</h2>
     <div id="lista-comidas"></div>
   </section>
 
@@ -395,6 +438,7 @@ canvas{width:100%; height:auto; display:block}
   <section id="vista-perfil" class="oculto">
     <div class="tarjeta">
       <h2>Tus datos</h2>
+      <label class="campo"><span>Nombre</span><input type="text" id="p-nombre" autocomplete="given-name" placeholder="Cómo quieres que te salude"></label>
       <label class="campo"><span>Edad</span><input type="number" id="p-edad" inputmode="numeric" min="12" max="100"></label>
       <label class="campo"><span>Sexo</span>
         <select id="p-sexo">
@@ -484,12 +528,24 @@ canvas{width:100%; height:auto; display:block}
 </main>
 
 <!-- ─────────────────────────── BARRA INFERIOR ──────────────────────────── -->
+<!-- Iconos de trazo, dibujados aquí mismo: los emojis los pinta cada teléfono a su
+     manera y rompían la unidad visual de la barra. -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-inicio" viewBox="0 0 24 24"><path d="M3 10.2 12 3l9 7.2V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-diario" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 11h18"/></symbol>
+  <symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-progreso" viewBox="0 0 24 24"><path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/></symbol>
+  <symbol id="i-perfil" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></symbol>
+  <symbol id="i-camara" viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.4h6.8L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.6"/></symbol>
+  <symbol id="i-galeria" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5"/></symbol>
+</svg>
+
 <nav class="inferior">
-  <button data-vista="inicio" class="activo"><span class="ico">📔</span>Diario</button>
-  <button data-vista="buscar"><span class="ico">🔍</span>Buscar</button>
-  <button class="fab" id="btn-camara" aria-label="Tomar foto de la comida">📷</button>
-  <button data-vista="progreso"><span class="ico">📈</span>Progreso</button>
-  <button data-vista="perfil"><span class="ico">👤</span>Perfil</button>
+  <button data-vista="inicio" class="activo"><svg class="ico"><use href="#i-inicio"/></svg>Inicio</button>
+  <button data-vista="buscar"><svg class="ico"><use href="#i-buscar"/></svg>Buscar</button>
+  <button class="fab" id="btn-camara" aria-label="Registrar una comida con foto"><svg><use href="#i-camara"/></svg></button>
+  <button data-vista="progreso"><svg class="ico"><use href="#i-progreso"/></svg>Progreso</button>
+  <button data-vista="perfil"><svg class="ico"><use href="#i-perfil"/></svg>Perfil</button>
 </nav>
 
 <!-- Dos entradas separadas a propósito: el atributo `capture` es lo que hace que
@@ -507,12 +563,12 @@ canvas{width:100%; height:auto; display:block}
     <div class="pequeno apagado" style="margin-bottom:14px">Del plato completo y con buena luz: así se estiman mejor las porciones.</div>
     <div class="acciones-origen">
       <button class="tarjeta-accion destacada" id="origen-camara">
-        <span class="ico">📷</span>
+        <svg class="ico" style="width:26px;height:26px"><use href="#i-camara"/></svg>
         <b>Tomar foto</b>
         <span class="apoyo">Captura al instante</span>
       </button>
       <button class="tarjeta-accion" id="origen-galeria">
-        <span class="ico">🖼️</span>
+        <svg class="ico" style="width:26px;height:26px"><use href="#i-galeria"/></svg>
         <b>De la galería</b>
         <span class="apoyo">Elige una imagen</span>
       </button>
@@ -792,17 +848,17 @@ const ALIMENTOS = BASE.map(desdeBase);
    Los nombres son los que se usan en Colombia: "media mañana" y "onces"
    hacen el papel de los snacks de media jornada. */
 const COMIDAS = [
-  {id:'desayuno', nombre:'Desayuno', icono:'🌅'},
-  {id:'media', nombre:'Media mañana', icono:'☕'},
-  {id:'almuerzo', nombre:'Almuerzo', icono:'🍽️'},
-  {id:'onces', nombre:'Onces', icono:'🥪'},
-  {id:'cena', nombre:'Cena', icono:'🌙'},
+  {id:'desayuno', nombre:'Desayuno'},
+  {id:'media', nombre:'Media mañana'},
+  {id:'almuerzo', nombre:'Almuerzo'},
+  {id:'onces', nombre:'Onces'},
+  {id:'cena', nombre:'Cena'},
 ];
 
 /* ═════════════════════════════ ESTADO ══════════════════════════════════ */
 
 const ESTADO_INICIAL = {
-  perfil:{edad:null, sexo:'m', peso:null, estatura:null, actividad:1.55, objetivo:'mantener'},
+  perfil:{nombre:'', edad:null, sexo:'m', peso:null, estatura:null, actividad:1.55, objetivo:'mantener'},
   meta:{manual:false, kcal:2000, prot:120, carb:225, gras:67},
   registros:{},          // 'AAAA-MM-DD' -> [registro]
   pesos:[],              // [{fecha, valor}]
@@ -1043,24 +1099,80 @@ function borrarRegistro(fecha, idRegistro){
 
 /* ═════════════════════════ VISTA: DIARIO ═══════════════════════════════ */
 
+/** El saludo y la fecha de la cabecera, que cambian con la vista. */
+function pintarCabecera(){
+  const titulo = document.getElementById('titulo-cabecera');
+  const sub = document.getElementById('subtitulo-cabecera');
+  const nombre = (ESTADO.perfil.nombre || '').trim();
+
+  if(vistaActual === 'inicio'){
+    titulo.innerHTML = nombre ? 'Hola, ' + esc(nombre) + ' 👋' : 'Nutri<span>Foto</span>';
+    sub.textContent = fechaLarga(fechaActual);
+  }else{
+    const nombres = {buscar:'Buscar alimento', progreso:'Progreso', perfil:'Perfil'};
+    titulo.textContent = nombres[vistaActual] || 'NutriFoto';
+    sub.textContent = '';
+  }
+}
+
+function fechaLarga(txt){
+  const d = desdeFecha(txt);
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+                 'septiembre','octubre','noviembre','diciembre'];
+  return dias[d.getDay()] + ', ' + d.getDate() + ' de ' + meses[d.getMonth()];
+}
+
+/**
+ * Los siete días de la semana en que cae la fecha elegida, de lunes a domingo.
+ * Los días futuros se ven apagados pero se pueden abrir: sirve para dejar
+ * anotada una comida planeada.
+ */
+function pintarSemana(){
+  const d = desdeFecha(fechaActual);
+  const desplazamiento = (d.getDay() + 6) % 7;          // lunes = 0
+  const lunes = sumarDias(fechaActual, -desplazamiento);
+  const letras = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const tira = document.getElementById('tira-dias');
+
+  tira.innerHTML = '';
+  for(let i = 0; i < 7; i++){
+    const fecha = sumarDias(lunes, i);
+    const boton = document.createElement('button');
+    boton.className = 'dia' +
+      (fecha === fechaActual ? ' activo' : '') +
+      (fecha === hoy() ? ' hoy' : '') +
+      (fecha > hoy() ? ' futuro' : '');
+    boton.innerHTML = letras[i] + '<b>' + desdeFecha(fecha).getDate() + '</b>';
+    boton.onclick = ()=>{ fechaActual = fecha; pintarInicio(); };
+    tira.appendChild(boton);
+  }
+}
+
 function pintarInicio(){
+  pintarSemana();
   document.getElementById('etiqueta-fecha').textContent = nombreFecha(fechaActual);
   document.getElementById('selector-fecha').value = fechaActual;
+  pintarCabecera();
 
   const meta = metaVigente();
   const t = totalesDelDia(fechaActual);
 
-  // Anillo. La circunferencia de r=52 es 2πr ≈ 326.7.
-  const circunferencia = 2 * Math.PI * 52;
+  // Anillo. La circunferencia de r=42 es 2πr ≈ 263.9.
+  const circunferencia = 2 * Math.PI * 42;
   const proporcion = meta.kcal > 0 ? Math.min(t.kcal / meta.kcal, 1) : 0;
   const anillo = document.getElementById('anillo-valor');
   anillo.setAttribute('stroke-dasharray', (circunferencia*proporcion).toFixed(1) + ' ' + circunferencia.toFixed(1));
-  anillo.style.stroke = t.kcal > meta.kcal ? 'var(--carb)' : 'var(--acento)';
+  anillo.style.stroke = t.kcal > meta.kcal ? 'var(--gras)' : 'var(--acento)';
   // Con 0 kcal el remate redondo dibujaría un punto suelto arriba del anillo.
   anillo.style.strokeLinecap = proporcion > 0 ? 'round' : 'butt';
 
-  document.getElementById('kcal-consumidas').textContent = red(t.kcal);
-  document.getElementById('kcal-meta').textContent = 'de ' + red(meta.kcal) + ' kcal';
+  const porcentaje = document.getElementById('porcentaje-dia');
+  porcentaje.textContent = (meta.kcal > 0 ? Math.round(t.kcal / meta.kcal * 100) : 0) + '%';
+  porcentaje.style.color = t.kcal > meta.kcal ? 'var(--gras)' : 'var(--acento)';
+
+  document.getElementById('kcal-consumidas').textContent = red(t.kcal).toLocaleString('es-CO');
+  document.getElementById('kcal-meta').textContent = '/ ' + red(meta.kcal).toLocaleString('es-CO') + ' kcal';
 
   const macros = [['prot','prot'],['carb','carb'],['gras','gras']];
   macros.forEach(([clave])=>{
@@ -1071,9 +1183,14 @@ function pintarInicio(){
   });
 
   const faltan = red(meta.kcal - t.kcal);
-  document.getElementById('restante').textContent =
-    faltan >= 0 ? 'Te quedan ' + faltan + ' kcal para la meta del día.'
-                : 'Vas ' + Math.abs(faltan) + ' kcal por encima de la meta del día.';
+  const restante = document.getElementById('restante');
+  restante.textContent = faltan >= 0
+    ? faltan.toLocaleString('es-CO') + ' kcal'
+    : '+' + Math.abs(faltan).toLocaleString('es-CO') + ' kcal';
+  restante.style.color = faltan >= 0 ? 'var(--texto)' : 'var(--gras)';
+
+  document.getElementById('titulo-comidas').textContent =
+    fechaActual === hoy() ? 'Comidas de hoy' : 'Comidas del ' + nombreFecha(fechaActual).toLowerCase();
 
   pintarComidas();
 }
@@ -1091,7 +1208,7 @@ function pintarComidas(){
     bloque.className = 'comida';
     bloque.innerHTML =
       '<div class="cabeza">' +
-        '<h3>' + comida.icono + ' ' + esc(comida.nombre) + '</h3>' +
+        '<h3>' + esc(comida.nombre) + '</h3>' +
         (kcal ? '<span class="kcal">' + red(kcal) + ' kcal</span>' : '') +
         '<button class="mas" data-comida="' + comida.id + '" aria-label="Agregar a ' + esc(comida.nombre) + '">+</button>' +
       '</div>';
@@ -1405,6 +1522,13 @@ function pintarRevision(){
     contenido.appendChild(img);
   }
 
+  // Total del plato, arriba del todo: es el número por el que se abrió esta
+  // pantalla, y tiene que verse antes de empezar a corregir porciones.
+  const cabezaTotal = document.createElement('div');
+  cabezaTotal.className = 'tarjeta total-plato';
+  cabezaTotal.id = 'rev-total';
+  contenido.appendChild(cabezaTotal);
+
   if(esNuevoDeFoto){
     const aviso = document.createElement('div');
     aviso.className = 'aviso';
@@ -1433,13 +1557,24 @@ function pintarRevision(){
   contenido.appendChild(selector);
 
   // Alimentos.
+  const titulo = document.createElement('h2');
+  titulo.style.cssText = 'font-size:14.5px; margin:4px 2px 10px';
+  titulo.textContent = esNuevoDeFoto ? 'Alimentos detectados' : 'Alimentos';
+  contenido.appendChild(titulo);
+
   const lista = document.createElement('div');
   revision.alimentos.forEach(a => lista.appendChild(filaAlimento(a)));
   contenido.appendChild(lista);
 
+  const pregunta = document.createElement('div');
+  pregunta.className = 'pequeno apagado';
+  pregunta.style.cssText = 'margin:14px 2px 8px';
+  pregunta.textContent = esNuevoDeFoto ? '¿No se detectó algo?' : '¿Falta algo?';
+  contenido.appendChild(pregunta);
+
   const agregar = document.createElement('button');
   agregar.className = 'btn ancho';
-  agregar.textContent = '+ Agregar un alimento que falta';
+  agregar.textContent = '+ Agregar alimento';
   agregar.onclick = ()=>{
     modoBusqueda = 'revision';
     cerrarCapa('capa-revision');
@@ -1451,13 +1586,10 @@ function pintarRevision(){
   // El total vive en el pie, junto al botón de guardar: así se ve siempre, sin
   // taparle la lista al usuario mientras ajusta las cantidades.
   const pie = document.getElementById('rev-pie');
-  pie.style.flexDirection = 'column';
+  pie.style.flexDirection = '';
   pie.innerHTML =
-    '<div class="fila entre" id="rev-total" style="width:100%"></div>' +
-    '<div class="fila" style="width:100%; gap:10px">' +
-      (revision.registro ? '<button class="btn" id="rev-borrar" style="color:var(--alerta)">Borrar</button>' : '') +
-      '<button class="btn principal" style="flex:1" id="rev-guardar">Guardar</button>' +
-    '</div>';
+    (revision.registro ? '<button class="btn" id="rev-borrar" style="color:var(--alerta)">Borrar</button>' : '') +
+    '<button class="btn principal" style="flex:1" id="rev-guardar">Guardar comida</button>';
   actualizarTotalRevision();
   document.getElementById('rev-guardar').onclick = guardarRevision;
   const borrar = document.getElementById('rev-borrar');
@@ -1539,8 +1671,14 @@ function actualizarTotalRevision(){
   if(!caja || !revision) return;
   const t = totalesDe(revision.alimentos);
   caja.innerHTML =
-    '<b style="font-size:17px">' + red(t.kcal) + ' kcal</b>' +
-    '<span class="pequeno apagado">P ' + red(t.prot) + ' g · C ' + red(t.carb) + ' g · G ' + red(t.gras) + ' g</span>';
+    '<div class="mini apagado" style="font-weight:600">Total del plato</div>' +
+    '<div class="cifra-grande"><b>' + red(t.kcal).toLocaleString('es-CO') + '</b>' +
+      '<span class="apagado">kcal</span></div>' +
+    '<div class="macros-linea">' +
+      '<span><i style="background:var(--prot)"></i>P <b>' + red(t.prot) + ' g</b></span>' +
+      '<span><i style="background:var(--carb)"></i>C <b>' + red(t.carb) + ' g</b></span>' +
+      '<span><i style="background:var(--gras)"></i>G <b>' + red(t.gras) + ' g</b></span>' +
+    '</div>';
 }
 
 async function guardarRevision(){
@@ -1941,6 +2079,7 @@ function linea(canvas, datos){
 
 function pintarPerfil(){
   const p = ESTADO.perfil;
+  document.getElementById('p-nombre').value = p.nombre ?? '';
   document.getElementById('p-edad').value = p.edad ?? '';
   document.getElementById('p-sexo').value = p.sexo;
   document.getElementById('p-peso').value = p.peso ?? '';
@@ -1971,6 +2110,7 @@ function pintarPerfil(){
 
 function leerPerfil(){
   const p = ESTADO.perfil;
+  p.nombre = document.getElementById('p-nombre').value.trim();
   p.edad = Number(document.getElementById('p-edad').value) || null;
   p.sexo = document.getElementById('p-sexo').value;
   p.peso = Number(document.getElementById('p-peso').value) || null;
@@ -1982,7 +2122,7 @@ function leerPerfil(){
   pintarInicio();
 }
 
-['p-edad','p-sexo','p-peso','p-estatura','p-actividad','p-objetivo'].forEach(idCampo=>{
+['p-nombre','p-edad','p-sexo','p-peso','p-estatura','p-actividad','p-objetivo'].forEach(idCampo=>{
   document.getElementById(idCampo).onchange = leerPerfil;
 });
 
@@ -2086,7 +2226,7 @@ function aplicarTema(){
   document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
   const meta = document.createElement('meta');
   meta.name = 'theme-color';
-  meta.content = oscuro ? '#131311' : '#faf7f2';
+  meta.content = oscuro ? '#111827' : '#f9fafb';
   document.head.appendChild(meta);
 }
 
@@ -2119,6 +2259,7 @@ function irA(vista){
     b.classList.toggle('activo', b.dataset.vista === vista);
   });
   window.scrollTo(0,0);
+  pintarCabecera();
   if(vista === 'progreso') pintarProgreso();
   if(vista === 'perfil') pintarPerfil();
   if(vista === 'buscar') pintarBusqueda();
@@ -2178,8 +2319,6 @@ window.addEventListener('popstate', ()=>{
 
 /* ── Fechas ───────────────────────────────────────────────────────────── */
 
-document.getElementById('dia-antes').onclick = ()=>{ fechaActual = sumarDias(fechaActual,-1); pintarInicio(); };
-document.getElementById('dia-despues').onclick = ()=>{ fechaActual = sumarDias(fechaActual, 1); pintarInicio(); };
 document.getElementById('selector-fecha').onchange = (e)=>{
   if(e.target.value){ fechaActual = e.target.value; pintarInicio(); }
 };
@@ -2191,7 +2330,7 @@ document.getElementById('campo-buscar').oninput = pintarBusqueda;
 function mostrarBienvenida(){
   document.getElementById('bienvenida-contenido').innerHTML =
     '<div style="padding:26px 4px 10px; text-align:center">' +
-      '<div style="font-size:46px">🍽️</div>' +
+      '<img src="icons/icon-192.png" alt="" width="76" height="76" style="border-radius:20px">' +
       '<h1 style="font-size:24px; margin:10px 0 6px">Nutri<span style="color:var(--acento)">Foto</span></h1>' +
       '<div class="apagado" style="font-size:14.5px">Toma una foto de tu plato y la app estima los ' +
       'alimentos, las porciones y las calorías. Tú ajustas lo que no cuadre.</div>' +
@@ -2200,6 +2339,7 @@ function mostrarBienvenida(){
       '<h2>Para calcular tu meta diaria</h2>' +
       '<div class="pequeno apagado" style="margin-bottom:12px">Puedes saltarte esto y llenarlo después ' +
         'en Perfil. Sin estos datos la app usa una meta general de 2.000 kcal.</div>' +
+      '<label class="campo"><span>Tu nombre</span><input type="text" id="b-nombre" placeholder="Cómo quieres que te salude"></label>' +
       '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">' +
         '<label class="campo"><span>Edad</span><input type="number" id="b-edad" inputmode="numeric"></label>' +
         '<label class="campo"><span>Sexo</span><select id="b-sexo"><option value="m">Masculino</option><option value="f">Femenino</option></select></label>' +
@@ -2222,6 +2362,7 @@ function mostrarBienvenida(){
 document.getElementById('bienvenida-listo').onclick = ()=>{
   const num = (idCampo)=> Number(document.getElementById(idCampo).value) || null;
   ESTADO.perfil = {
+    nombre: document.getElementById('b-nombre').value.trim(),
     edad: num('b-edad'), sexo: document.getElementById('b-sexo').value,
     peso: num('b-peso'), estatura: num('b-estatura'),
     actividad: Number(document.getElementById('b-actividad').value),
