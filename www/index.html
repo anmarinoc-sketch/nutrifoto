@@ -276,6 +276,19 @@ textarea{resize:vertical; min-height:64px}
 .macros-linea i{width:8px; height:8px; border-radius:50%; display:inline-block}
 .macros-linea b{color:var(--texto); font-weight:600}
 
+.bloque-plan{
+  background:var(--superficie); border:1px solid var(--borde); border-radius:var(--r);
+  padding:12px 14px; margin-bottom:10px;
+}
+.opcion-plan{
+  width:100%; display:flex; align-items:center; gap:10px; text-align:left;
+  padding:9px 10px; border-radius:var(--r-s); border:1px solid var(--borde);
+  background:var(--fondo); margin-bottom:6px; font-size:13.5px;
+}
+.opcion-plan .texto{flex:1}
+.opcion-plan .kcal{color:var(--apagado); font-size:12.5px; font-variant-numeric:tabular-nums}
+.opcion-plan:disabled{opacity:.5}
+
 /* ── Cargando ─────────────────────────────────────────────────────────── */
 .cargando{display:grid; place-items:center; gap:14px; padding:36px 20px; text-align:center}
 .giro{
@@ -400,6 +413,10 @@ canvas{width:100%; height:auto; display:block}
       <div class="pequeno apagado" id="restante" style="margin-top:12px"></div>
     </div>
 
+    <div class="fila" style="gap:8px; margin:14px 0 4px">
+      <button class="btn principal" style="flex:1" id="btn-que-como">¿Qué puedo comer?</button>
+      <button class="btn oculto" id="btn-mi-plan">Mi plan</button>
+    </div>
     <h2 style="font-size:14.5px; margin:18px 2px 10px" id="titulo-comidas">Comidas de hoy</h2>
     <div id="lista-comidas"></div>
   </section>
@@ -464,6 +481,12 @@ canvas{width:100%; height:auto; display:block}
           <option value="subir">Subir de peso</option>
         </select>
       </label>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Plan nutricional</h2>
+      <div class="pequeno apagado" id="estado-plan" style="margin-bottom:12px"></div>
+      <button class="btn ancho" id="btn-plan-activar">Seguir el plan</button>
     </div>
 
     <div class="tarjeta">
@@ -598,6 +621,25 @@ canvas{width:100%; height:auto; display:block}
   <div class="pie">
     <button class="btn ancho principal" id="por-guardar">Agregar al diario</button>
   </div>
+</div>
+
+<!-- ──────────────────────────── CAPA: MI PLAN ─────────────────────────── -->
+<div class="capa oculto" id="capa-plan">
+  <header>
+    <button class="icono-btn" id="plan-cerrar">✕</button>
+    <div class="marca">Mi plan</div>
+  </header>
+  <div class="contenido" id="plan-contenido"></div>
+</div>
+
+<!-- ─────────────────────── CAPA: ¿QUÉ PUEDO COMER? ─────────────────────── -->
+<div class="capa oculto" id="capa-ideas">
+  <header>
+    <button class="icono-btn" id="ideas-cerrar">✕</button>
+    <div class="marca">¿Qué puedo comer?</div>
+  </header>
+  <div class="contenido" id="ideas-contenido"></div>
+  <div class="pie" id="ideas-pie"></div>
 </div>
 
 <!-- ───────────────────────── CAPA: PRIMER ARRANQUE ─────────────────────── -->
@@ -832,6 +874,18 @@ const BASE = [
 
   // ── Suplementos ───────────────────────────────────────────────────────
   ['Proteína en polvo','Suplementos',380,78,8,4,[['medida',30]]],
+
+  // ── Alimentos del plan de intercambios que no estaban arriba ──────────
+  ['Feijoa','Frutas',47,0.9,10.6,0.6,[['unidad',42]]],
+  ['Kiwi','Frutas',61,1.1,15,0.5,[['unidad',67]]],
+  ['Pistacho','Snacks',562,20,28,45,[['cucharada',11]]],
+  ['Avellana','Snacks',628,15,17,61,[['unidad',1.5]]],
+  ['Macadamia','Snacks',718,8,14,76,[['unidad',2]]],
+  ['Semillas de calabaza','Snacks',559,30,11,49,[['cucharada',11]]],
+  ['Semillas de girasol','Snacks',584,21,20,51,[['cucharada',10]]],
+  ['Semillas de ajonjolí','Snacks',573,18,23,50,[['cucharada',10]]],
+  ['Trucha','Pescados',148,21,0,6.6,[['unidad',151]]],
+  ['Clara de huevo pasteurizada','Huevos',52,11,0.7,0.2,[['unidad',33]]],
 ];
 
 /** Convierte una fila de BASE en un objeto manejable. */
@@ -848,12 +902,174 @@ const ALIMENTOS = BASE.map(desdeBase);
    Los nombres son los que se usan en Colombia: "media mañana" y "onces"
    hacen el papel de los snacks de media jornada. */
 const COMIDAS = [
-  {id:'desayuno', nombre:'Desayuno'},
-  {id:'media', nombre:'Media mañana'},
-  {id:'almuerzo', nombre:'Almuerzo'},
-  {id:'onces', nombre:'Onces'},
-  {id:'cena', nombre:'Cena'},
+  {id:'desayuno', nombre:'Desayuno', hora:'07:00', ventana:'6:00 – 9:00'},
+  {id:'media',    nombre:'Media mañana', hora:'10:00', ventana:'9:30 – 11:00'},
+  {id:'almuerzo', nombre:'Almuerzo', hora:'13:00', ventana:'12:00 – 14:00'},
+  {id:'onces',    nombre:'Onces', hora:'16:30', ventana:'15:30 – 17:30'},
+  {id:'cena',     nombre:'Cena', hora:'19:30', ventana:'18:30 – 21:00'},
 ];
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Peso de un alimento: qué tan concentradas están sus calorías.
+
+   No dice si algo es sano; dice cuánto ocupa de la meta por cada bocado, que es
+   lo que sirve para decidir cuando quedan pocas calorías del día. Los umbrales
+   son los que se usan en consulta para densidad calórica (kcal por 100 g).
+   ───────────────────────────────────────────────────────────────────────── */
+const PESOS = [
+  {id:'muy-liviano', hasta:60,  nombre:'Muy liviano', apoyo:'Llena sin gastar meta'},
+  {id:'liviano',     hasta:120, nombre:'Liviano',     apoyo:'Cabe casi siempre'},
+  {id:'medio',       hasta:250, nombre:'Medio',       apoyo:'Porción normal, sin excesos'},
+  {id:'pesado',      hasta:400, nombre:'Pesado',      apoyo:'Vigila la cantidad'},
+  {id:'muy-pesado',  hasta:1e9, nombre:'Muy pesado',  apoyo:'Poca cantidad pesa mucho'},
+];
+
+function pesoDe(kcalPor100){
+  return PESOS.find(p => kcalPor100 <= p.hasta) || PESOS[PESOS.length - 1];
+}
+
+/** Qué macronutriente domina el aporte, en calorías, no en gramos. */
+function aporteDominante(por100){
+  const kcal = {
+    proteína: (por100.prot || 0) * 4,
+    carbohidratos: (por100.carb || 0) * 4,
+    grasas: (por100.gras || 0) * 9,
+  };
+  const total = kcal.proteína + kcal.carbohidratos + kcal.grasas;
+  if(total <= 0) return null;
+  const [nombre, valor] = Object.entries(kcal).sort((a,b) => b[1]-a[1])[0];
+  return {nombre, porcentaje: Math.round(valor / total * 100)};
+}
+
+/** La frase que explica qué aporta un alimento, como la diría un nutricionista. */
+function queAporta(por100){
+  const dominante = aporteDominante(por100);
+  if(!dominante) return 'Aporta muy pocas calorías.';
+  return 'Sobre todo ' + dominante.nombre + ' (' + dominante.porcentaje + ' % de sus calorías). ' +
+    por100.kcal.toLocaleString('es-CO') + ' kcal por cada 100 g. ' + pesoDe(por100.kcal).apoyo + '.';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   El plan nutricional de Andrés, tal como se lo entregó su entrenador.
+
+   Está armado por INTERCAMBIOS: en cada comida se elige una opción de cada
+   bloque, y todas las opciones de un bloque aportan lo mismo. Por eso cada
+   opción se guarda como un alimento de la base más unos gramos: así los macros
+   salen de la tabla y no de números escritos a mano que nadie podría revisar.
+
+   `objetivo` es lo que dice el plan que aporta ese bloque, para poder cotejarlo
+   con lo que sale de la base. Cuando no cuadra, manda el plan y se ve la
+   diferencia en pantalla.
+   ───────────────────────────────────────────────────────────────────────── */
+const PLAN = {
+  id:'stiveen-hipertrofia',
+  nombre:'Plan de hipertrofia',
+  autor:'Stiveen Gallego · Guarne, Antioquia',
+  objetivo:'Aumentar masa muscular · nivel intermedio · superávit',
+  meta:{kcal:2604, prot:120, carb:351, gras:80},
+  recomendaciones:[
+    'Bebe entre 2 y 3 litros de agua al día. Guíate por la sed y por el color de la orina.',
+    'No necesitas horarios fijos: lo importante es cubrir las porciones del día.',
+    'Prefiere las cocciones al vapor o hervidas.',
+    'Incluye una taza de vegetales variados en el almuerzo y en la cena.',
+    'Rota las fuentes y come frutas y vegetales de distintos colores.',
+    'Si no comes fruta, toma al menos 3 porciones de vegetales (un puñado es una porción).',
+    'Para los plaguicidas: remoja 15 minutos en agua con una cucharada de bicarbonato.',
+    'Suplementos, solo si no alcanzas tus requerimientos con la comida.',
+  ],
+  comidas:[
+    {comida:'desayuno', bloques:[
+      {tipo:'Proteína', objetivo:'una opción', opciones:[
+        {alimento:'Huevo cocido', gramos:110, texto:'2 huevos enteros'},
+        {alimento:'Clara de huevo pasteurizada', gramos:132, texto:'4 claras'},
+        {alimento:'Cuajada', gramos:100, texto:'100 g de cuajada o quesito (2 tajadas)'},
+        {alimento:'Pechuga de pollo a la plancha', gramos:130, texto:'130 g de pechuga (½ unidad grande)'},
+        {alimento:'Carne de res magra asada', gramos:138, texto:'138 g de carne de res'},
+      ]},
+      {tipo:'Carbohidratos', objetivo:'65 g de carbohidrato', opciones:[
+        {alimento:'Plátano maduro asado', gramos:175, texto:'175 g de plátano maduro (1 unidad mediana)'},
+        {alimento:'Arroz blanco cocido', gramos:224, texto:'224 g de arroz (10 cucharadas soperas)'},
+        {alimento:'Arepa antioqueña asada', gramos:159, texto:'159 g de arepa (1 unidad grande)'},
+        {alimento:'Papa cocida', gramos:310, texto:'310 g de papa cocida (3 unidades ½ medianas)'},
+        {alimento:'Avena en hojuelas cruda', gramos:97, texto:'97 g de avena (19 cucharadas soperas)'},
+      ]},
+    ]},
+    {comida:'media', bloques:[
+      {tipo:'Proteína', objetivo:'38 g de proteína', opciones:[
+        {alimento:'Proteína en polvo', gramos:44, texto:'44 g de whey (1 cucharada ½ dosificadora)'},
+      ]},
+      {tipo:'Fruta', objetivo:'20 g de carbohidrato', opciones:[
+        {alimento:'Banano', gramos:85, texto:'85 g de banano (1 unidad pequeña)'},
+        {alimento:'Feijoa', gramos:168, texto:'168 g de feijoa (4 unidades pequeñas)'},
+        {alimento:'Granadilla', gramos:172, texto:'172 g de granadilla (2 unidades medianas)'},
+        {alimento:'Kiwi', gramos:134, texto:'134 g de kiwi (2 pequeños o 1 grande)'},
+        {alimento:'Mango', gramos:117, texto:'117 g de mango (1 unidad pequeña)'},
+        {alimento:'Maracuyá', gramos:86, texto:'86 g de maracuyá (1 unidad mediana)'},
+        {alimento:'Naranja', gramos:169, texto:'169 g de naranja (1 unidad mediana)'},
+        {alimento:'Papaya', gramos:204, texto:'204 g de papaya (1 trozo grande)'},
+        {alimento:'Pera', gramos:132, texto:'132 g de pera (1 unidad pequeña)'},
+        {alimento:'Piña', gramos:161, texto:'161 g de piña (1 tajada gruesa)'},
+        {alimento:'Manzana', gramos:130, texto:'130 g de manzana (1 unidad pequeña)'},
+      ]},
+      {tipo:'Grasas', objetivo:'20 g de grasa', opciones:[
+        {alimento:'Nueces', gramos:36, texto:'36 g de nueces (4 cucharadas soperas)'},
+        {alimento:'Pistacho', gramos:44, texto:'44 g de pistacho (4 cucharadas soperas)'},
+        {alimento:'Almendras', gramos:36, texto:'36 g de almendras (4 cucharadas soperas)'},
+        {alimento:'Maní', gramos:40, texto:'40 g de maní sin sal (4 cucharadas soperas)'},
+        {alimento:'Avellana', gramos:36, texto:'36 g de avellana (24 unidades medianas)'},
+        {alimento:'Macadamia', gramos:24, texto:'24 g de macadamia (12 unidades medianas)'},
+      ]},
+    ]},
+    {comida:'almuerzo', bloques:[
+      {tipo:'Proteína', objetivo:'32 g de proteína', opciones:[
+        {alimento:'Trucha', gramos:151, texto:'151 g de trucha cocida (1 unidad mediana)'},
+        {alimento:'Salmón', gramos:160, texto:'160 g de salmón cocido (1 trozo grande)'},
+        {alimento:'Muslo o pierna de pollo asado', gramos:158, texto:'158 g de muslo sin piel (2 unidades medianas)'},
+        {alimento:'Pechuga de pollo a la plancha', gramos:138, texto:'138 g de pechuga sin piel (½ unidad grande)'},
+        {alimento:'Lomo de cerdo asado', gramos:149, texto:'149 g de lomo o cañón magro de cerdo'},
+        {alimento:'Carne de res magra asada', gramos:147, texto:'147 g de carne de res cocida'},
+      ]},
+      {tipo:'Carbohidratos', objetivo:'93 g de carbohidrato', opciones:[
+        {alimento:'Papa cocida', gramos:387, texto:'387 g de papa cocida (4 unidades ½ medianas)'},
+        {alimento:'Papa criolla cocida', gramos:497, texto:'497 g de papa criolla (14 unidades medianas)'},
+        {alimento:'Plátano maduro asado', gramos:254, texto:'254 g de plátano maduro (1 unidad mediana)'},
+        {alimento:'Yuca cocida', gramos:262, texto:'262 g de yuca (4 trozos medianos)'},
+        {alimento:'Fríjol cargamanto cocido', gramos:380, texto:'380 g de fríjol (3 cucharones ½)'},
+        {alimento:'Lentejas cocidas', gramos:465, texto:'465 g de lenteja (3 cucharones ½)'},
+        {alimento:'Garbanzo cocido', gramos:363, texto:'363 g de garbanzo (3 cucharones ½)'},
+        {alimento:'Arroz blanco cocido', gramos:322, texto:'322 g de arroz (13 cucharadas soperas)'},
+        {alimento:'Pasta cocida', gramos:455, texto:'455 g de pasta cocida (4 pocillos chocolateros)'},
+        {alimento:'Arepa antioqueña asada', gramos:232, texto:'232 g de arepa (2 unidades medianas)'},
+      ]},
+      {tipo:'Grasas', objetivo:'20 g de grasa', opciones:[
+        {alimento:'Aguacate', gramos:132, texto:'132 g de aguacate Hass (1 unidad entera)'},
+        {alimento:'Aguacate', gramos:128, texto:'128 g de aguacate común (½ unidad grande)'},
+        {alimento:'Semillas de calabaza', gramos:44, texto:'44 g de semillas de calabaza (4 cucharadas)'},
+        {alimento:'Semillas de girasol', gramos:40, texto:'40 g de semillas de girasol (4 cucharadas)'},
+        {alimento:'Semillas de ajonjolí', gramos:40, texto:'40 g de ajonjolí (4 cucharadas)'},
+      ]},
+      {tipo:'Vegetales', objetivo:'una taza, libre', opciones:[
+        {alimento:'Ensalada mixta sin aderezo', gramos:120, texto:'1 taza de vegetales variados'},
+      ]},
+    ]},
+    {comida:'onces', bloques:[
+      {tipo:'Proteína', objetivo:'8 g de proteína', opciones:[
+        {alimento:'Yogur griego natural', gramos:160, texto:'160 g de yogur griego natural (1 vaso)'},
+      ]},
+      {tipo:'Fruta', objetivo:'20 g de carbohidrato', opciones:'como en media mañana'},
+    ]},
+    {comida:'cena', bloques:'como en el almuerzo'},
+  ],
+};
+
+/** El plan del almuerzo y el de la cena son el mismo; la fruta se repite igual. */
+function bloquesDe(idComida){
+  const entrada = PLAN.comidas.find(c => c.comida === (idComida === 'cena' ? 'almuerzo' : idComida));
+  if(!entrada) return [];
+  return entrada.bloques.map(b => b.opciones === 'como en media mañana'
+    ? {...b, opciones: PLAN.comidas.find(c => c.comida === 'media').bloques.find(x => x.tipo === 'Fruta').opciones}
+    : b);
+}
 
 /* ═════════════════════════════ ESTADO ══════════════════════════════════ */
 
@@ -863,6 +1079,8 @@ const ESTADO_INICIAL = {
   registros:{},          // 'AAAA-MM-DD' -> [registro]
   pesos:[],              // [{fecha, valor}]
   propios:[],            // alimentos creados por el usuario
+  plan:{activo:false},   // si sigue el plan de intercambios de su entrenador
+  cocina:{ingredientes:'', preferencias:''},  // lo último que escribió al pedir ideas
   ajustes:{tema:'auto', servidor:SERVIDOR_POR_DEFECTO, bienvenida:false},
 };
 
@@ -889,6 +1107,8 @@ function estructurar(datos){
     registros:datos.registros || {},
     pesos:Array.isArray(datos.pesos) ? datos.pesos : [],
     propios:Array.isArray(datos.propios) ? datos.propios : [],
+    plan:{...base.plan, ...(datos.plan||{})},
+    cocina:{...base.cocina, ...(datos.cocina||{})},
     ajustes:{...base.ajustes, ...(datos.ajustes||{})},
   };
 }
@@ -1191,6 +1411,8 @@ function pintarInicio(){
 
   document.getElementById('titulo-comidas').textContent =
     fechaActual === hoy() ? 'Comidas de hoy' : 'Comidas del ' + nombreFecha(fechaActual).toLowerCase();
+
+  document.getElementById('btn-mi-plan').classList.toggle('oculto', !ESTADO.plan.activo);
 
   pintarComidas();
 }
@@ -1496,6 +1718,8 @@ function abrirRevision(datos){
     registro: datos.registro || null,
     fecha: datos.fecha || fechaActual,
     modelo: datos.modelo || null,
+    titulo: datos.titulo || null,
+    hora: datos.hora || (datos.registro && datos.registro.hora) || horaAhora(),
   };
   abrirCapa('capa-revision');
   pintarRevision();
@@ -1555,6 +1779,22 @@ function pintarRevision(){
     b.onclick = ()=>{ revision.comida = b.dataset.comida; pintarRevision(); };
   });
   contenido.appendChild(selector);
+
+  // Hora de la comida. Se puede corregir: registrar a las 9 de la noche algo que
+  // se comio a media tarde es lo normal, y la hora del registro no es la de la
+  // comida. El plan de Andres no exige horarios fijos, pero saber a que horas
+  // come de verdad es la mitad de lo que se aprende de un diario.
+  const franja = COMIDAS.find(c => c.id === revision.comida);
+  const hora = document.createElement('div');
+  hora.style.marginBottom = '14px';
+  hora.innerHTML =
+    '<span class="pequeno apagado" style="display:block; margin-bottom:6px; font-weight:600">¿A qué hora?</span>' +
+    '<div class="fila" style="gap:10px">' +
+      '<input type="time" id="rev-hora" value="' + esc(revision.hora || horaAhora()) + '" style="width:130px">' +
+      '<span class="mini apagado" style="flex:1">' + (franja ? 'Habitual: ' + franja.ventana : '') + '</span>' +
+    '</div>';
+  hora.querySelector('#rev-hora').onchange = (e)=>{ revision.hora = e.target.value; };
+  contenido.appendChild(hora);
 
   // Alimentos.
   const titulo = document.createElement('h2');
@@ -1684,13 +1924,14 @@ function actualizarTotalRevision(){
 async function guardarRevision(){
   if(revision.alimentos.length === 0){ avisar('No queda ningún alimento que guardar.'); return; }
 
-  const registro = revision.registro || {id:id(), hora:horaAhora(), foto:false};
+  const registro = revision.registro || {id:id(), foto:false};
+  registro.hora = revision.hora || horaAhora();
   registro.comida = revision.comida;
   registro.alimentos = revision.alimentos;
   registro.notas = revision.notas;
-  registro.titulo = revision.alimentos.length === 1
+  registro.titulo = revision.titulo || (revision.alimentos.length === 1
     ? revision.alimentos[0].nombre
-    : revision.alimentos[0].nombre + ' y ' + (revision.alimentos.length - 1) + ' más';
+    : revision.alimentos[0].nombre + ' y ' + (revision.alimentos.length - 1) + ' más');
   registro.totales = totalesDe(revision.alimentos);
 
   if(revision.fotoTemporal && !registro.foto){
@@ -1747,7 +1988,8 @@ function pintarBusqueda(){
     b.className = 'resultado-alimento';
     b.innerHTML =
       '<div class="cuerpo"><div class="n">' + esc(a.nombre) + '</div>' +
-      '<div class="d">' + esc(a.categoria) + (a.origen === 'propio' ? ' · propio' : '') + '</div></div>' +
+      '<div class="d">' + esc(a.categoria) + (a.origen === 'propio' ? ' · propio' : '') +
+      ' · ' + esc(pesoDe(a.por100.kcal).nombre.toLowerCase()) + '</div></div>' +
       '<div class="k">' + red(a.por100.kcal) + ' kcal<br><span class="mini">por 100 g</span></div>';
     b.onclick = () => abrirPorcion(a);
     caja.appendChild(b);
@@ -1792,11 +2034,15 @@ function pintarPorcion(){
           (u === 'g' ? 'gramos' : esc(u)) + '</option>').join('') + '</select>' +
       '</div>' +
       '<div class="pequeno apagado" id="por-equivalencia" style="margin-top:8px"></div>' +
+      '<div class="pequeno apagado" id="por-cabe" style="margin-top:4px"></div>' +
       '<div class="resultado" id="por-resultado" style="display:flex; gap:14px; margin-top:12px; flex-wrap:wrap">' +
         '<span><b style="font-size:19px">' + red(x.kcal) + '</b> kcal</span>' +
         '<span class="apagado">P <b>' + red(x.prot) + '</b> g</span>' +
         '<span class="apagado">C <b>' + red(x.carb) + '</b> g</span>' +
         '<span class="apagado">G <b>' + red(x.gras) + '</b> g</span>' +
+      '</div>' +
+      '<div class="aviso" style="margin:14px 0 0">' +
+        '<b>' + esc(pesoDe(a.por100.kcal).nombre) + '.</b> ' + esc(queAporta(a.por100)) +
       '</div>' +
     '</div>' +
     (modoBusqueda === 'revision' ? '' :
@@ -1820,6 +2066,18 @@ function pintarPorcion(){
       '<span class="apagado">G <b>' + red(y.gras) + '</b> g</span>';
     document.getElementById('por-equivalencia').textContent =
       a.unidad === 'g' ? '' : 'Equivale a ' + red(a.gramos) + ' g';
+    // Cuanto de lo que queda del dia se lleva esta porcion.
+    const libre = restanteDelDia().kcal;
+    const cabe = document.getElementById('por-cabe');
+    if(libre > 0 && y.kcal > 0){
+      const parte = Math.round(y.kcal / libre * 100);
+      cabe.textContent = parte <= 100
+        ? 'Se lleva el ' + parte + ' % de las ' + red(libre).toLocaleString('es-CO') + ' kcal que te quedan hoy.'
+        : 'Se pasa de las ' + red(libre).toLocaleString('es-CO') + ' kcal que te quedan hoy.';
+      cabe.style.color = parte > 100 ? 'var(--gras)' : '';
+    }else{
+      cabe.textContent = '';
+    }
   }
   campo.oninput = recalcular;
   unidad.onchange = ()=>{
@@ -2075,6 +2333,395 @@ function linea(canvas, datos){
   ctx.fillText(nombreFecha(datos[datos.length-1].fecha), px(datos.length-1) - 10, alto - 7);
 }
 
+/* ══════════════════════════ MI PLAN ════════════════════════════════════ */
+
+/** Busca en la base el alimento con el que está enlazada una opción del plan. */
+function alimentoDeLaBase(nombre){
+  return ALIMENTOS.find(a => a.nombre === nombre) || null;
+}
+
+/** Convierte una opción del plan en un alimento listo para el diario. */
+function alimentoDeOpcion(opcion){
+  const base = alimentoDeLaBase(opcion.alimento);
+  if(!base) return null;
+  return crearAlimento({
+    nombre: base.nombre,
+    por100: base.por100,
+    medidas: base.medidas,
+    unidad: 'g',
+    cantidad: opcion.gramos,
+    gramos: opcion.gramos,
+  });
+}
+
+/** Porciones del plan que ya se registraron hoy, por comida y tipo de bloque. */
+function bloquesCumplidos(idComida){
+  const registros = registrosDe(fechaActual).filter(r => r.comida === idComida);
+  const nombres = new Set();
+  registros.forEach(r => r.alimentos.forEach(a => nombres.add(a.nombre)));
+  return nombres;
+}
+
+function abrirPlan(){
+  abrirCapa('capa-plan');
+  pintarPlan();
+}
+
+function pintarPlan(){
+  const caja = document.getElementById('plan-contenido');
+  const t = totalesDelDia(fechaActual);
+
+  let html =
+    '<div class="tarjeta">' +
+      '<h2 style="margin-bottom:2px">' + esc(PLAN.nombre) + '</h2>' +
+      '<div class="pequeno apagado">' + esc(PLAN.autor) + '</div>' +
+      '<div class="pequeno apagado" style="margin-top:6px">' + esc(PLAN.objetivo) + '</div>' +
+      '<div class="macros-linea" style="margin-top:12px">' +
+        '<span><b>' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal</b></span>' +
+        '<span><i style="background:var(--prot)"></i>P <b>' + PLAN.meta.prot + ' g</b></span>' +
+        '<span><i style="background:var(--carb)"></i>C <b>' + PLAN.meta.carb + ' g</b></span>' +
+        '<span><i style="background:var(--gras)"></i>G <b>' + PLAN.meta.gras + ' g</b></span>' +
+      '</div>' +
+      '<div class="aviso" style="margin-bottom:0">Hoy llevas <b>' + red(t.kcal).toLocaleString('es-CO') +
+        ' kcal</b> de las ' + PLAN.meta.kcal.toLocaleString('es-CO') + ' del plan.</div>' +
+    '</div>' +
+    '<div class="aviso">Tu plan funciona por <b>intercambios</b>: en cada comida eliges ' +
+      '<b>una</b> opción de cada bloque. Todas las de un mismo bloque aportan lo mismo, ' +
+      'así que se pueden cambiar entre sí sin rehacer cuentas.</div>';
+
+  COMIDAS.forEach(comida=>{
+    const bloques = bloquesDe(comida.id);
+    if(!bloques.length) return;
+    const yaHay = bloquesCumplidos(comida.id);
+
+    html += '<h2 style="font-size:14.5px; margin:20px 2px 4px">' + esc(comida.nombre) + '</h2>' +
+            '<div class="mini apagado" style="margin:0 2px 10px">Sugerido ' + comida.ventana + '</div>';
+
+    bloques.forEach((bloque, iBloque)=>{
+      const opciones = Array.isArray(bloque.opciones) ? bloque.opciones : [];
+      const cumplido = opciones.some(o => yaHay.has(o.alimento));
+      html +=
+        '<div class="bloque-plan">' +
+          '<div class="fila entre" style="margin-bottom:2px">' +
+            '<b style="font-size:13.5px">' + esc(bloque.tipo) + '</b>' +
+            (cumplido ? '<span class="chip alta">ya registrado</span>' : '') +
+          '</div>' +
+          '<div class="mini apagado" style="margin-bottom:8px">' + esc(bloque.objetivo) + '</div>' +
+          opciones.map((o,i)=>{
+            const alimento = alimentoDeOpcion(o);
+            const aporta = alimento ? aportaDe(alimento) : null;
+            return '<button class="opcion-plan" data-comida="' + comida.id + '" data-bloque="' + iBloque +
+              '" data-opcion="' + i + '"' + (alimento ? '' : ' disabled') + '>' +
+              '<span class="texto">' + esc(o.texto) + '</span>' +
+              (aporta ? '<span class="kcal">' + red(aporta.kcal) + ' kcal</span>' : '') +
+            '</button>';
+          }).join('') +
+        '</div>';
+    });
+  });
+
+  html += '<h2 style="font-size:14.5px; margin:22px 2px 10px">Recomendaciones del plan</h2>' +
+    '<div class="tarjeta"><ul style="margin:0; padding-left:18px">' +
+    PLAN.recomendaciones.map(r => '<li class="pequeno" style="margin-bottom:7px">' + esc(r) + '</li>').join('') +
+    '</ul></div>' +
+    '<div class="aviso">Las calorías de cada opción salen de la tabla de alimentos de la app, ' +
+      'no del documento: pueden diferir en unas pocas del papel. Si algo no coincide con tu ' +
+      'plan original, manda el plan.</div>';
+
+  caja.innerHTML = html;
+
+  caja.querySelectorAll('.opcion-plan').forEach(boton=>{
+    boton.onclick = ()=>{
+      const bloques = bloquesDe(boton.dataset.comida);
+      const opcion = bloques[Number(boton.dataset.bloque)].opciones[Number(boton.dataset.opcion)];
+      const alimento = alimentoDeOpcion(opcion);
+      if(!alimento) return;
+      comidaElegida = boton.dataset.comida;
+      cerrarCapa('capa-plan');
+      abrirRevision({
+        alimentos:[alimento],
+        comida: boton.dataset.comida,
+        notas:'',
+        fecha: fechaActual,
+      });
+    };
+  });
+}
+
+/* ═══════════════════════ ¿QUÉ PUEDO COMER? ═════════════════════════════ */
+
+/** Lo que queda del día: la meta menos lo registrado. */
+function restanteDelDia(){
+  const meta = metaVigente();
+  const t = totalesDelDia(fechaActual);
+  return {
+    kcal: meta.kcal - t.kcal,
+    prot: meta.prot - t.prot,
+    carb: meta.carb - t.carb,
+    gras: meta.gras - t.gras,
+  };
+}
+
+/**
+ * Sugerencias sin internet: alimentos de la base que caben enteros en lo que
+ * queda, ordenados por lo que más falta. No sustituyen a las ideas de la IA,
+ * pero evitan que la pantalla quede vacía cuando no hay red ni cuota.
+ */
+function ideasLocales(restante){
+  if(restante.kcal <= 0) return [];
+  const dominante = ['prot','carb','gras']
+    .map(k => ({k, falta: restante[k]}))
+    .sort((a,b) => b.falta - a.falta)[0].k;
+  const clave = {prot:'prot', carb:'carb', gras:'gras'}[dominante];
+
+  return todosLosAlimentos()
+    .map(a=>{
+      // La porción de referencia: la primera medida casera, o 100 g.
+      const gramos = a.medidas && a.medidas.length ? a.medidas[0][1] : 100;
+      const factor = gramos / 100;
+      const kcal = a.por100.kcal * factor;
+      return {
+        alimento:a, gramos, kcal,
+        aporte: a.por100[clave] * factor,
+        etiqueta: (a.medidas && a.medidas.length ? '1 ' + a.medidas[0][0] : '100 g'),
+      };
+    })
+    .filter(x => x.kcal > 20 && x.kcal <= restante.kcal && x.aporte > 0)
+    .sort((a,b) => (b.aporte / Math.max(b.kcal,1)) - (a.aporte / Math.max(a.kcal,1)))
+    .slice(0, 12);
+}
+
+function abrirIdeas(){
+  abrirCapa('capa-ideas');
+  pintarIdeasInicio();
+}
+
+function pintarIdeasInicio(){
+  const restante = restanteDelDia();
+  const comida = comidaSegunHora();
+  const nombreComida = (COMIDAS.find(c => c.id === comida) || {}).nombre || 'la próxima comida';
+
+  document.getElementById('ideas-contenido').innerHTML =
+    '<div class="tarjeta">' +
+      '<div class="mini apagado" style="font-weight:600">Te queda hoy</div>' +
+      '<div class="cifra-grande"><b>' + red(Math.max(restante.kcal,0)).toLocaleString('es-CO') +
+        '</b><span class="apagado">kcal</span></div>' +
+      '<div class="macros-linea">' +
+        '<span><i style="background:var(--prot)"></i>P <b>' + red(Math.max(restante.prot,0)) + ' g</b></span>' +
+        '<span><i style="background:var(--carb)"></i>C <b>' + red(Math.max(restante.carb,0)) + ' g</b></span>' +
+        '<span><i style="background:var(--gras)"></i>G <b>' + red(Math.max(restante.gras,0)) + ' g</b></span>' +
+      '</div>' +
+    '</div>' +
+    (restante.kcal <= 0
+      ? '<div class="aviso">Ya cubriste la meta del día. Puedes pedir ideas igual: te propondrá ' +
+        'algo liviano.</div>'
+      : '') +
+    '<label class="campo"><span>¿Qué tienes en la casa? (opcional)</span>' +
+      '<textarea id="ideas-ingredientes" placeholder="Huevos, arroz, aguacate, una pechuga…">' +
+      esc(ESTADO.cocina.ingredientes) + '</textarea></label>' +
+    '<label class="campo"><span>Gustos o restricciones (opcional)</span>' +
+      '<input type="text" id="ideas-preferencias" placeholder="Sin lactosa, rápido, sin freír…" value="' +
+      esc(ESTADO.cocina.preferencias) + '"></label>' +
+    (ESTADO.plan.activo
+      ? '<div class="aviso">Las ideas se van a armar <b>con las porciones de tu plan</b>.</div>'
+      : '') +
+    '<h2 style="font-size:14.5px; margin:20px 2px 10px">Mientras tanto, lo que cabe</h2>' +
+    '<div id="ideas-locales"></div>';
+
+  const locales = ideasLocales(restante);
+  document.getElementById('ideas-locales').innerHTML = locales.length
+    ? locales.map((x,i)=>
+        '<button class="resultado-alimento" data-local="' + i + '">' +
+          '<div class="cuerpo"><div class="n">' + esc(x.alimento.nombre) + '</div>' +
+          '<div class="d">' + esc(x.etiqueta) + ' · ' + pesoDe(x.alimento.por100.kcal).nombre.toLowerCase() + '</div></div>' +
+          '<div class="k">' + red(x.kcal) + ' kcal</div>' +
+        '</button>').join('')
+    : '<div class="vacio">Con lo que queda no cabe una porción entera de nada. ' +
+      'Pide ideas y te propone algo del tamaño que cabe.</div>';
+
+  document.querySelectorAll('#ideas-locales [data-local]').forEach(b=>{
+    b.onclick = ()=>{
+      const x = locales[Number(b.dataset.local)];
+      cerrarCapa('capa-ideas');
+      modoBusqueda = 'diario';
+      abrirPorcion(x.alimento);
+    };
+  });
+
+  document.getElementById('ideas-pie').innerHTML =
+    '<button class="btn principal ancho" id="ideas-pedir">Pedir ideas para ' +
+    esc(nombreComida.toLowerCase()) + '</button>';
+  document.getElementById('ideas-pedir').onclick = pedirIdeas;
+}
+
+async function pedirIdeas(){
+  const ingredientes = (document.getElementById('ideas-ingredientes') || {}).value || '';
+  const preferencias = (document.getElementById('ideas-preferencias') || {}).value || '';
+  ESTADO.cocina = {ingredientes, preferencias};
+  guardar();
+
+  const restante = restanteDelDia();
+  const comida = comidaSegunHora();
+
+  document.getElementById('ideas-pie').innerHTML = '';
+  document.getElementById('ideas-contenido').innerHTML =
+    '<div class="cargando"><div class="giro"></div>' +
+      '<div><b id="paso-ideas">Pensando qué te cabe…</b>' +
+      '<div class="pequeno apagado" style="margin-top:4px">Con lo que queda de tu día' +
+      (ESTADO.plan.activo ? ' y las porciones de tu plan' : '') + '.</div></div></div>';
+
+  if(!navigator.onLine){
+    errorDeIdeas('Sin conexión a internet.',
+      'Las ideas necesitan internet. Lo que sí funciona sin conexión es la lista de alimentos que caben.');
+    return;
+  }
+
+  const paso = document.getElementById('paso-ideas');
+  const avisos = [
+    [8000, 'Despertando el servidor…'],
+    [20000, 'Armando las opciones…'],
+  ].map(([ms,txt]) => setTimeout(()=>{ if(paso) paso.textContent = txt; }, ms));
+
+  const control = new AbortController();
+  const corte = setTimeout(()=>control.abort(), 150000);
+
+  try{
+    const respuesta = await fetch(servidor() + '/api/sugerir-comida', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        restante, meta: metaVigente(), consumido: totalesDelDia(fechaActual),
+        comida: (COMIDAS.find(c => c.id === comida) || {}).nombre || '',
+        ingredientes, preferencias,
+        plan: ESTADO.plan.activo ? planComoTexto() : '',
+      }),
+      signal: control.signal,
+    });
+    const cuerpo = await respuesta.json().catch(()=>null);
+
+    if(!respuesta.ok || !cuerpo || cuerpo.ok === false){
+      const err = cuerpo && cuerpo.error;
+      errorDeIdeas(err ? err.mensaje : 'El servidor respondió con un error (' + respuesta.status + ').',
+        err && err.detalle ? err.detalle : '');
+      return;
+    }
+
+    pintarIdeas(cuerpo.resultado || {}, restante);
+  }catch(error){
+    if(error.name === 'AbortError') errorDeIdeas('Tardó demasiado.', 'Reintenta en un momento.');
+    else{
+      console.error(error);
+      errorDeIdeas('No se pudo contactar el servidor.', 'Revisa tu conexión y reintenta.');
+    }
+  }finally{
+    avisos.forEach(clearTimeout);
+    clearTimeout(corte);
+  }
+}
+
+/** El plan en texto, que es como lo entiende el modelo. */
+function planComoTexto(){
+  const partes = [PLAN.nombre + ' — ' + PLAN.objetivo,
+    'Meta diaria: ' + PLAN.meta.kcal + ' kcal, ' + PLAN.meta.prot + ' g de proteína, ' +
+    PLAN.meta.carb + ' g de carbohidratos, ' + PLAN.meta.gras + ' g de grasa.',
+    'Funciona por intercambios: en cada comida se elige UNA opción de cada bloque.'];
+
+  COMIDAS.forEach(comida=>{
+    const bloques = bloquesDe(comida.id);
+    if(!bloques.length) return;
+    partes.push('\n' + comida.nombre.toUpperCase() + ':');
+    bloques.forEach(b=>{
+      const opciones = Array.isArray(b.opciones) ? b.opciones : [];
+      partes.push('  ' + b.tipo + ' (' + b.objetivo + '): ' + opciones.map(o => o.texto).join(' | '));
+    });
+  });
+  return partes.join('\n');
+}
+
+function errorDeIdeas(titulo, detalle){
+  document.getElementById('ideas-contenido').innerHTML =
+    '<div class="tarjeta" style="margin-top:20px"><h2 style="color:var(--alerta)">' + esc(titulo) + '</h2>' +
+    (detalle ? '<div class="pequeno apagado">' + esc(detalle) + '</div>' : '') + '</div>';
+  document.getElementById('ideas-pie').innerHTML =
+    '<button class="btn ancho principal" id="ideas-volver">Volver</button>';
+  document.getElementById('ideas-volver').onclick = pintarIdeasInicio;
+}
+
+function pintarIdeas(resultado, restante){
+  const opciones = resultado.opciones || [];
+  if(opciones.length === 0){
+    errorDeIdeas('No se pudo armar ninguna opción.', resultado.nota || '');
+    return;
+  }
+
+  const caja = document.getElementById('ideas-contenido');
+  caja.innerHTML =
+    '<div class="mini apagado" style="margin:2px 2px 12px">Para las ' +
+      red(Math.max(restante.kcal,0)).toLocaleString('es-CO') + ' kcal que te quedan</div>' +
+    (resultado.nota ? '<div class="aviso">' + esc(resultado.nota) + '</div>' : '') +
+    opciones.map((o,i)=>
+      '<div class="tarjeta">' +
+        '<div class="fila entre" style="align-items:flex-start; gap:10px">' +
+          '<h2 style="flex:1">' + esc(o.nombre) + '</h2>' +
+          '<span class="chip ' + (o.peso === 'liviana' ? 'alta' : o.peso === 'media' ? 'media' : 'baja') + '">' +
+            esc(o.peso) + '</span>' +
+        '</div>' +
+        '<div class="pequeno apagado" style="margin:4px 0 10px">' + esc(o.por_que) + '</div>' +
+        '<div class="cifra-grande"><b>' + red(o.totales.calorias).toLocaleString('es-CO') +
+          '</b><span class="apagado">kcal</span></div>' +
+        '<div class="macros-linea" style="margin-bottom:12px">' +
+          '<span><i style="background:var(--prot)"></i>P <b>' + red(o.totales.proteina_g) + ' g</b></span>' +
+          '<span><i style="background:var(--carb)"></i>C <b>' + red(o.totales.carbohidratos_g) + ' g</b></span>' +
+          '<span><i style="background:var(--gras)"></i>G <b>' + red(o.totales.grasas_g) + ' g</b></span>' +
+          (o.tiempo_minutos ? '<span>⏱ <b>' + red(o.tiempo_minutos) + ' min</b></span>' : '') +
+        '</div>' +
+        '<div class="pequeno" style="margin-bottom:10px">' +
+          o.alimentos.map(a => '· ' + esc(a.nombre) + ' — ' + red(a.cantidad,1) + ' ' + esc(a.unidad) +
+            ' <span class="apagado">(' + red(a.calorias) + ' kcal)</span>').join('<br>') +
+        '</div>' +
+        (o.preparacion.length
+          ? '<details><summary class="pequeno" style="cursor:pointer; margin-bottom:8px">Cómo se hace</summary>' +
+            '<ol class="pequeno" style="margin:6px 0 0; padding-left:18px">' +
+            o.preparacion.map(p => '<li style="margin-bottom:5px">' + esc(p) + '</li>').join('') +
+            '</ol></details>'
+          : '') +
+        '<button class="btn ancho principal" data-registrar="' + i + '" style="margin-top:12px">' +
+          'Registrar esta opción</button>' +
+      '</div>').join('');
+
+  caja.querySelectorAll('[data-registrar]').forEach(boton=>{
+    boton.onclick = ()=>{
+      const opcion = opciones[Number(boton.dataset.registrar)];
+      const alimentos = opcion.alimentos.map(a => crearAlimento({
+        nombre: a.nombre,
+        por100: {
+          kcal: a.por_100g.calorias, prot: a.por_100g.proteina_g,
+          carb: a.por_100g.carbohidratos_g, gras: a.por_100g.grasas_g,
+        },
+        gramos: a.gramos, unidad: 'g', cantidad: a.gramos,
+        medidas: !['g','ml'].includes(String(a.unidad).toLowerCase()) && a.cantidad > 0
+          ? [[a.unidad, red(a.gramos / a.cantidad)]] : [],
+      }));
+      cerrarCapa('capa-ideas');
+      abrirRevision({
+        alimentos, comida: comidaSegunHora(), notas:'', fecha: fechaActual,
+        titulo: opcion.nombre,
+      });
+    };
+  });
+
+  document.getElementById('ideas-pie').innerHTML =
+    '<button class="btn" id="ideas-otra">Otras ideas</button>' +
+    '<button class="btn principal" style="flex:1" id="ideas-cambiar">Cambiar lo que tengo</button>';
+  document.getElementById('ideas-otra').onclick = pedirIdeas;
+  document.getElementById('ideas-cambiar').onclick = pintarIdeasInicio;
+}
+
+document.getElementById('btn-que-como').onclick = abrirIdeas;
+document.getElementById('btn-mi-plan').onclick = abrirPlan;
+document.getElementById('plan-cerrar').onclick = ()=> cerrarCapa('capa-plan');
+document.getElementById('ideas-cerrar').onclick = ()=> cerrarCapa('capa-ideas');
+
 /* ════════════════════════════ PERFIL ═══════════════════════════════════ */
 
 function pintarPerfil(){
@@ -2106,7 +2753,31 @@ function pintarPerfil(){
   document.querySelectorAll('#opciones-tema button').forEach(b=>{
     b.setAttribute('aria-pressed', b.dataset.tema === ESTADO.ajustes.tema);
   });
+
+  document.getElementById('estado-plan').innerHTML = ESTADO.plan.activo
+    ? 'Estás siguiendo el <b>' + esc(PLAN.nombre.toLowerCase()) + '</b> de ' + esc(PLAN.autor.split('·')[0].trim()) +
+      ': ' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal al día, por porciones intercambiables. ' +
+      'La meta de arriba la fija el plan.'
+    : 'Tienes cargado el <b>' + esc(PLAN.nombre.toLowerCase()) + '</b> de ' + esc(PLAN.autor.split('·')[0].trim()) +
+      ' (' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal). Al seguirlo, la meta del día pasa a ser la suya ' +
+      'y aparece la pantalla “Mi plan” con las porciones de cada comida.';
+  document.getElementById('btn-plan-activar').textContent =
+    ESTADO.plan.activo ? 'Dejar de seguir el plan' : 'Seguir el plan';
 }
+
+document.getElementById('btn-plan-activar').onclick = ()=>{
+  if(ESTADO.plan.activo){
+    ESTADO.plan.activo = false;
+    ESTADO.meta.manual = false;      // vuelve a la meta calculada con sus datos
+  }else{
+    ESTADO.plan.activo = true;
+    // El plan trae sus propios números: se copian a la meta manual, que es la que
+    // manda sobre el cálculo automático.
+    ESTADO.meta = {manual:true, ...PLAN.meta};
+  }
+  guardar(); pintarPerfil(); pintarInicio();
+  avisar(ESTADO.plan.activo ? 'Siguiendo tu plan' : 'Plan desactivado');
+};
 
 function leerPerfil(){
   const p = ESTADO.perfil;
@@ -2311,7 +2982,7 @@ window.addEventListener('popstate', ()=>{
     history.pushState({capa:null}, '');
   }
 });
-['capa-revision','capa-porcion'].forEach(idCapa=>{
+['capa-revision','capa-porcion','capa-plan','capa-ideas'].forEach(idCapa=>{
   new MutationObserver(()=>{
     if(!document.getElementById(idCapa).classList.contains('oculto')) history.pushState({capa:idCapa}, '');
   }).observe(document.getElementById(idCapa), {attributes:true, attributeFilter:['class']});
