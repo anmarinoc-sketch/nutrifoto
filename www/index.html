@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131311" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Registra lo que comes con una foto: calorías y macronutrientes estimados, y un diario que funciona sin conexión.">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>NutriFoto</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   Paleta. Se define entera en :root (claro) y se redefine en oscuro, para
+   que el tema manual (data-tema) y el del sistema convivan sin pelearse.
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --fondo:#faf7f2; --superficie:#ffffff; --superficie-2:#f3efe8;
+  --texto:#23201c; --apagado:#7a736a; --borde:#e8e1d7;
+  --acento:#2f7a5b; --acento-suave:#e4f1ea;
+  --prot:#3b7dd8; --carb:#d98324; --gras:#b5559b;
+  --alerta:#b4533a; --sombra:0 1px 2px rgba(35,32,28,.06), 0 8px 24px rgba(35,32,28,.06);
+  --r:16px; --r-s:10px;
+}
+:root[data-tema="oscuro"], html:not([data-tema="claro"]) body.sistema-oscuro{
+  --fondo:#131311; --superficie:#1d1c19; --superficie-2:#26241f;
+  --texto:#f0ebe3; --apagado:#9a938a; --borde:#302e29;
+  --acento:#5fcf9f; --acento-suave:#1d2c26;
+  --prot:#74a9f5; --carb:#efaa5c; --gras:#dd8ac9;
+  --alerta:#e08a70; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-tema="claro"]){
+    --fondo:#131311; --superficie:#1d1c19; --superficie-2:#26241f;
+    --texto:#f0ebe3; --apagado:#9a938a; --borde:#302e29;
+    --acento:#5fcf9f; --acento-suave:#1d2c26;
+    --prot:#74a9f5; --carb:#efaa5c; --gras:#dd8ac9;
+    --alerta:#e08a70; --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  }
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+body{
+  background:var(--fondo); color:var(--texto);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  font-size:16px; line-height:1.45; overscroll-behavior-y:none;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+}
+h1,h2,h3{margin:0; font-weight:650; letter-spacing:-.01em}
+button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
+input,select,textarea{font:inherit; color:var(--texto)}
+.oculto{display:none !important}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────── */
+header{
+  position:sticky; top:0; z-index:20; background:var(--fondo);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom:1px solid var(--borde); display:flex; align-items:center; gap:10px;
+}
+header .marca{font-size:17px; font-weight:700; letter-spacing:-.02em; flex:1}
+header .marca span{color:var(--acento)}
+.icono-btn{
+  width:38px; height:38px; border-radius:50%; display:grid; place-items:center;
+  background:var(--superficie); border:1px solid var(--borde); font-size:17px;
+}
+
+/* ── Contenedores ─────────────────────────────────────────────────────── */
+main{padding:14px 16px 0; max-width:640px; margin:0 auto}
+.tarjeta{
+  background:var(--superficie); border:1px solid var(--borde);
+  border-radius:var(--r); padding:16px; margin-bottom:14px; box-shadow:var(--sombra);
+}
+.tarjeta h2{font-size:15px; margin-bottom:10px}
+.fila{display:flex; align-items:center; gap:10px}
+.entre{justify-content:space-between}
+.apagado{color:var(--apagado)}
+.pequeno{font-size:13px}
+.mini{font-size:12px}
+
+/* ── Navegación de fecha ──────────────────────────────────────────────── */
+.nav-fecha{display:flex; align-items:center; gap:6px; margin-bottom:12px}
+.nav-fecha button{
+  width:34px; height:34px; border-radius:var(--r-s); background:var(--superficie);
+  border:1px solid var(--borde); display:grid; place-items:center;
+}
+.nav-fecha .etiqueta{flex:1; text-align:center; font-weight:600; font-size:15px; position:relative}
+.nav-fecha input[type=date]{
+  position:absolute; inset:0; opacity:0; width:100%; height:100%; border:0;
+}
+
+/* ── Anillo de calorías ───────────────────────────────────────────────── */
+.resumen{display:flex; align-items:center; gap:18px}
+.anillo{position:relative; width:124px; height:124px; flex:none}
+.anillo svg{transform:rotate(-90deg); width:124px; height:124px}
+.anillo circle{fill:none; stroke-width:11; stroke-linecap:round}
+.anillo .pista{stroke:var(--superficie-2)}
+.anillo .valor{stroke:var(--acento); transition:stroke-dasharray .5s ease}
+.anillo .centro{
+  position:absolute; inset:0; display:grid; place-content:center; text-align:center;
+}
+.anillo .centro b{font-size:26px; font-weight:700; letter-spacing:-.03em; display:block; line-height:1.1}
+.anillo .centro small{font-size:11px; color:var(--apagado)}
+
+.macros{flex:1; display:grid; gap:10px}
+.macro .fila{justify-content:space-between; margin-bottom:3px}
+.macro .nombre{font-size:13px; font-weight:600}
+.macro .cifra{font-size:12px; color:var(--apagado); font-variant-numeric:tabular-nums}
+.barra{height:7px; border-radius:99px; background:var(--superficie-2); overflow:hidden}
+.barra i{display:block; height:100%; border-radius:99px; transition:width .4s ease}
+.m-prot i{background:var(--prot)} .m-carb i{background:var(--carb)} .m-gras i{background:var(--gras)}
+
+/* ── Comidas del día ──────────────────────────────────────────────────── */
+.comida{margin-bottom:12px}
+.comida > .cabeza{
+  display:flex; align-items:center; gap:8px; padding:0 4px 6px;
+}
+.comida .cabeza h3{font-size:14px; flex:1; color:var(--apagado); text-transform:uppercase; letter-spacing:.06em; font-size:11.5px}
+.comida .cabeza .kcal{font-size:13px; color:var(--apagado); font-variant-numeric:tabular-nums}
+.comida .cabeza .mas{
+  width:26px; height:26px; border-radius:50%; background:var(--superficie-2);
+  display:grid; place-items:center; font-size:16px; line-height:1; color:var(--apagado)
+}
+.registro{
+  background:var(--superficie); border:1px solid var(--borde); border-radius:var(--r);
+  padding:12px; margin-bottom:8px; display:flex; gap:12px; align-items:flex-start;
+}
+.registro .foto{
+  width:52px; height:52px; border-radius:var(--r-s); object-fit:cover; flex:none;
+  background:var(--superficie-2);
+}
+.registro .cuerpo{flex:1; min-width:0}
+.registro .titulo{font-weight:600; font-size:14.5px; line-height:1.3}
+.registro .detalle{font-size:12.5px; color:var(--apagado); margin-top:2px}
+.registro .cifras{font-size:12px; color:var(--apagado); margin-top:5px; font-variant-numeric:tabular-nums}
+.registro .acciones{display:flex; flex-direction:column; gap:4px; align-items:flex-end}
+.registro .acciones .botones{display:flex; gap:2px}
+.registro .acciones .btn.sutil{padding:3px 6px; font-size:12.5px}
+.registro .kcal-grande{font-weight:700; font-variant-numeric:tabular-nums; font-size:15px}
+.vacio{
+  border:1px dashed var(--borde); border-radius:var(--r); padding:14px;
+  text-align:center; color:var(--apagado); font-size:13.5px;
+}
+
+/* ── Chips y etiquetas ────────────────────────────────────────────────── */
+.chip{
+  display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px;
+  font-size:11.5px; font-weight:600; background:var(--superficie-2); color:var(--apagado);
+}
+.chip.alta{background:var(--acento-suave); color:var(--acento)}
+.chip.media{background:color-mix(in srgb, var(--carb) 16%, transparent); color:var(--carb)}
+.chip.baja{background:color-mix(in srgb, var(--alerta) 16%, transparent); color:var(--alerta)}
+
+/* ── Botones ──────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:12px 18px; border-radius:var(--r-s); font-weight:600; font-size:15px;
+  background:var(--superficie-2); border:1px solid var(--borde);
+}
+.btn.principal{background:var(--acento); color:#fff; border-color:transparent}
+:root[data-tema="oscuro"] .btn.principal, html:not([data-tema="claro"]) body.sistema-oscuro .btn.principal{color:#0f1a15}
+@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]) .btn.principal{color:#0f1a15}}
+.btn.ancho{width:100%}
+.btn.sutil{background:transparent; border-color:transparent; color:var(--apagado); padding:8px 10px}
+.btn:disabled{opacity:.5}
+
+/* ── Barra inferior y botón de cámara ─────────────────────────────────── */
+nav.inferior{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  background:color-mix(in srgb, var(--fondo) 92%, transparent);
+  backdrop-filter:blur(12px); border-top:1px solid var(--borde);
+  display:grid; grid-template-columns:repeat(5,1fr); align-items:center;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+nav.inferior button{
+  display:grid; justify-items:center; gap:2px; padding:6px 0; color:var(--apagado);
+  font-size:10.5px; font-weight:600;
+}
+nav.inferior button.activo{color:var(--acento)}
+nav.inferior button .ico{font-size:20px; line-height:1}
+.fab{
+  width:56px; height:56px; border-radius:50%; background:var(--acento); color:#fff;
+  display:grid; place-items:center; font-size:25px; justify-self:center;
+  margin-top:-22px; box-shadow:0 6px 18px color-mix(in srgb, var(--acento) 45%, transparent);
+}
+
+/* ── Capas (pantallas completas) ──────────────────────────────────────── */
+.capa{
+  position:fixed; inset:0; z-index:50; background:var(--fondo);
+  display:flex; flex-direction:column; animation:sube .22s ease;
+}
+@keyframes sube{from{transform:translateY(14px); opacity:0}}
+.capa > header{position:static}
+.capa .contenido{flex:1; overflow-y:auto; padding:14px 16px 24px; max-width:640px; margin:0 auto; width:100%}
+.capa .pie{
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--borde); background:var(--superficie);
+  display:flex; gap:10px; max-width:640px; margin:0 auto; width:100%;
+}
+
+/* ── Formularios ──────────────────────────────────────────────────────── */
+label.campo{display:block; margin-bottom:12px}
+label.campo > span{display:block; font-size:12.5px; color:var(--apagado); margin-bottom:5px; font-weight:600}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%; padding:11px 12px; border-radius:var(--r-s);
+  border:1px solid var(--borde); background:var(--superficie); outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--acento)}
+textarea{resize:vertical; min-height:64px}
+.opciones{display:flex; gap:8px; flex-wrap:wrap}
+.opciones button{
+  padding:9px 14px; border-radius:99px; border:1px solid var(--borde);
+  background:var(--superficie); font-size:13.5px; font-weight:600;
+}
+.opciones button[aria-pressed="true"]{background:var(--acento); color:#fff; border-color:transparent}
+:root[data-tema="oscuro"] .opciones button[aria-pressed="true"]{color:#0f1a15}
+@media (prefers-color-scheme: dark){:root:not([data-tema="claro"]) .opciones button[aria-pressed="true"]{color:#0f1a15}}
+
+/* ── Revisión de la foto ──────────────────────────────────────────────── */
+.foto-grande{
+  width:100%; max-height:190px; object-fit:cover; border-radius:var(--r);
+  background:var(--superficie-2); display:block;
+}
+.aviso{
+  background:var(--superficie-2); border-radius:var(--r-s); padding:10px 12px;
+  font-size:12.5px; color:var(--apagado); margin:12px 0; line-height:1.4;
+}
+.aviso b{color:var(--texto)}
+.item{
+  background:var(--superficie); border:1px solid var(--borde); border-radius:var(--r);
+  padding:12px; margin-bottom:8px;
+}
+.item .arriba{display:flex; gap:10px; align-items:flex-start}
+.item .nombre{flex:1; font-weight:600; font-size:15px; line-height:1.25}
+.item .cantidad{display:flex; gap:8px; margin-top:10px}
+.item .cantidad input{width:90px; text-align:right; font-variant-numeric:tabular-nums}
+.item .cantidad select{flex:1}
+.item .resultado{
+  display:flex; gap:12px; margin-top:9px; font-size:12.5px; color:var(--apagado);
+  font-variant-numeric:tabular-nums; flex-wrap:wrap;
+}
+.item .resultado b{color:var(--texto)}
+.borrar{color:var(--apagado); font-size:19px; line-height:1; padding:0 2px}
+
+
+/* ── Cargando ─────────────────────────────────────────────────────────── */
+.cargando{display:grid; place-items:center; gap:14px; padding:36px 20px; text-align:center}
+.giro{
+  width:34px; height:34px; border-radius:50%;
+  border:3px solid var(--superficie-2); border-top-color:var(--acento);
+  animation:gira .8s linear infinite;
+}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* ── Búsqueda ─────────────────────────────────────────────────────────── */
+.buscador{position:sticky; top:0; background:var(--fondo); padding-bottom:10px; z-index:5}
+.resultado-alimento{
+  width:100%; text-align:left; padding:11px 12px; border-radius:var(--r-s);
+  border:1px solid var(--borde); background:var(--superficie); margin-bottom:6px;
+  display:flex; align-items:center; gap:10px;
+}
+.resultado-alimento .cuerpo{flex:1; min-width:0}
+.resultado-alimento .n{font-weight:600; font-size:14.5px}
+.resultado-alimento .d{font-size:12px; color:var(--apagado)}
+.resultado-alimento .k{font-variant-numeric:tabular-nums; font-size:13px; color:var(--apagado)}
+
+/* ── Gráficas ─────────────────────────────────────────────────────────── */
+canvas{width:100%; height:auto; display:block}
+
+/* ── Mensajes flotantes ───────────────────────────────────────────────── */
+#aviso-flotante{
+  position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(10px); opacity:0; pointer-events:none;
+  background:var(--texto); color:var(--fondo); padding:10px 16px; border-radius:99px;
+  font-size:13.5px; font-weight:600; z-index:80; transition:.25s; max-width:90vw; text-align:center;
+}
+#aviso-flotante.visible{opacity:1; transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">Nutri<span>Foto</span></div>
+  <button class="icono-btn" id="btn-tema" title="Cambiar entre claro y oscuro">◐</button>
+</header>
+
+<main>
+
+  <!-- ─────────────────────────────── DIARIO ─────────────────────────────── -->
+  <section id="vista-inicio">
+    <div class="nav-fecha">
+      <button id="dia-antes" aria-label="Día anterior">‹</button>
+      <div class="etiqueta">
+        <span id="etiqueta-fecha">Hoy</span>
+        <input type="date" id="selector-fecha" aria-label="Elegir fecha">
+      </div>
+      <button id="dia-despues" aria-label="Día siguiente">›</button>
+    </div>
+
+    <div class="tarjeta">
+      <div class="resumen">
+        <div class="anillo">
+          <svg viewBox="0 0 124 124" aria-hidden="true">
+            <circle class="pista" cx="62" cy="62" r="52"></circle>
+            <circle class="valor" id="anillo-valor" cx="62" cy="62" r="52"
+                    stroke-dasharray="0 327" ></circle>
+          </svg>
+          <div class="centro">
+            <b id="kcal-consumidas">0</b>
+            <small id="kcal-meta">de 0 kcal</small>
+          </div>
+        </div>
+        <div class="macros">
+          <div class="macro m-prot">
+            <div class="fila entre"><span class="nombre">Proteína</span><span class="cifra" id="cifra-prot">0 / 0 g</span></div>
+            <div class="barra"><i id="barra-prot" style="width:0%"></i></div>
+          </div>
+          <div class="macro m-carb">
+            <div class="fila entre"><span class="nombre">Carbohidratos</span><span class="cifra" id="cifra-carb">0 / 0 g</span></div>
+            <div class="barra"><i id="barra-carb" style="width:0%"></i></div>
+          </div>
+          <div class="macro m-gras">
+            <div class="fila entre"><span class="nombre">Grasas</span><span class="cifra" id="cifra-gras">0 / 0 g</span></div>
+            <div class="barra"><i id="barra-gras" style="width:0%"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="pequeno apagado" id="restante" style="margin-top:12px"></div>
+    </div>
+
+    <div id="lista-comidas"></div>
+  </section>
+
+  <!-- ────────────────────────────── BUSCAR ──────────────────────────────── -->
+  <section id="vista-buscar" class="oculto">
+    <div class="buscador">
+      <input type="text" id="campo-buscar" placeholder="Buscar alimento: arepa, fríjoles, pollo…"
+             autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="fila" style="margin-bottom:10px; gap:8px; flex-wrap:wrap">
+      <button class="btn sutil" id="btn-crear-alimento">+ Crear alimento propio</button>
+    </div>
+    <div id="resultados-busqueda"></div>
+  </section>
+
+  <!-- ───────────────────────────── PROGRESO ─────────────────────────────── -->
+  <section id="vista-progreso" class="oculto">
+    <div class="tarjeta">
+      <h2>Calorías de los últimos 7 días</h2>
+      <canvas id="grafica-kcal" width="600" height="220"></canvas>
+      <div class="pequeno apagado" id="promedio-kcal" style="margin-top:8px"></div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="fila entre" style="margin-bottom:10px">
+        <h2 style="margin:0">Peso</h2>
+        <button class="btn sutil" id="btn-anotar-peso">+ Anotar</button>
+      </div>
+      <canvas id="grafica-peso" width="600" height="220"></canvas>
+      <div id="lista-pesos" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────── PERFIL ──────────────────────────────── -->
+  <section id="vista-perfil" class="oculto">
+    <div class="tarjeta">
+      <h2>Tus datos</h2>
+      <label class="campo"><span>Edad</span><input type="number" id="p-edad" inputmode="numeric" min="12" max="100"></label>
+      <label class="campo"><span>Sexo</span>
+        <select id="p-sexo">
+          <option value="m">Masculino</option>
+          <option value="f">Femenino</option>
+        </select>
+      </label>
+      <label class="campo"><span>Peso actual (kg)</span><input type="number" id="p-peso" inputmode="decimal" step="0.1"></label>
+      <label class="campo"><span>Estatura (cm)</span><input type="number" id="p-estatura" inputmode="numeric"></label>
+      <label class="campo"><span>Nivel de actividad</span>
+        <select id="p-actividad">
+          <option value="1.2">Sedentario: trabajo sentado, sin ejercicio</option>
+          <option value="1.375">Ligero: ejercicio 1 a 3 días por semana</option>
+          <option value="1.55">Moderado: ejercicio 3 a 5 días por semana</option>
+          <option value="1.725">Alto: ejercicio 6 o 7 días por semana</option>
+          <option value="1.9">Muy alto: trabajo físico o doble sesión</option>
+        </select>
+      </label>
+      <label class="campo"><span>Objetivo</span>
+        <select id="p-objetivo">
+          <option value="bajar">Bajar de peso</option>
+          <option value="mantener">Mantener</option>
+          <option value="subir">Subir de peso</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="tarjeta">
+      <div class="fila entre" style="margin-bottom:4px">
+        <h2 style="margin:0">Meta diaria</h2>
+        <button class="btn sutil" id="btn-meta-modo">Editar a mano</button>
+      </div>
+      <div class="pequeno apagado" id="explica-meta" style="margin-bottom:12px"></div>
+      <div id="campos-meta">
+        <label class="campo"><span>Calorías (kcal)</span><input type="number" id="p-meta-kcal" inputmode="numeric"></label>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px">
+          <label class="campo"><span>Proteína (g)</span><input type="number" id="p-meta-prot" inputmode="numeric"></label>
+          <label class="campo"><span>Carbos (g)</span><input type="number" id="p-meta-carb" inputmode="numeric"></label>
+          <label class="campo"><span>Grasas (g)</span><input type="number" id="p-meta-gras" inputmode="numeric"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Apariencia</h2>
+      <div class="opciones" id="opciones-tema">
+        <button data-tema="auto">Según el sistema</button>
+        <button data-tema="claro">Claro</button>
+        <button data-tema="oscuro">Oscuro</button>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Análisis por foto</h2>
+      <label class="campo"><span>Servidor de análisis</span><input type="text" id="p-backend" autocomplete="off" spellcheck="false"></label>
+      <div class="fila" style="gap:8px">
+        <button class="btn" id="btn-probar-servidor">Probar conexión</button>
+        <span class="pequeno apagado" id="estado-servidor"></span>
+      </div>
+      <div class="aviso" style="margin-bottom:0">
+        Las calorías que estima una foto son <b>una referencia, no una medición</b>. La app
+        siempre te deja corregir la cantidad antes de guardar, y ese ajuste es lo que hace
+        que el número se parezca a lo que de verdad comiste.
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Tus datos, en tu teléfono</h2>
+      <div class="pequeno apagado" style="margin-bottom:12px">
+        Todo lo que registras se guarda solo en este dispositivo. Las fotos se envían al
+        servidor de análisis únicamente en el momento de analizarlas, y no se archivan allí.
+      </div>
+      <div class="fila" style="gap:8px; flex-wrap:wrap">
+        <button class="btn" id="btn-exportar">Exportar copia</button>
+        <button class="btn" id="btn-importar">Importar copia</button>
+        <button class="btn sutil" id="btn-borrar-todo" style="color:var(--alerta)">Borrar todo</button>
+      </div>
+      <input type="file" id="archivo-importar" accept="application/json" class="oculto">
+    </div>
+
+    <div class="pequeno apagado" style="text-align:center; padding:0 10px 10px">
+      NutriFoto no da diagnósticos ni recomendaciones clínicas. Si tienes una condición de
+      salud o sigues un tratamiento, consúltalo con tu profesional de la salud.
+    </div>
+  </section>
+
+</main>
+
+<!-- ─────────────────────────── BARRA INFERIOR ──────────────────────────── -->
+<nav class="inferior">
+  <button data-vista="inicio" class="activo"><span class="ico">📔</span>Diario</button>
+  <button data-vista="buscar"><span class="ico">🔍</span>Buscar</button>
+  <button class="fab" id="btn-camara" aria-label="Tomar foto de la comida">📷</button>
+  <button data-vista="progreso"><span class="ico">📈</span>Progreso</button>
+  <button data-vista="perfil"><span class="ico">👤</span>Perfil</button>
+</nav>
+
+<input type="file" id="entrada-foto" accept="image/*" capture="environment" class="oculto">
+
+<!-- ─────────────────────────── CAPA: REVISIÓN ──────────────────────────── -->
+<div class="capa oculto" id="capa-revision">
+  <header>
+    <button class="icono-btn" id="rev-cerrar">✕</button>
+    <div class="marca" id="rev-titulo">Revisar comida</div>
+  </header>
+  <div class="contenido" id="rev-contenido"></div>
+  <div class="pie" id="rev-pie"></div>
+</div>
+
+<!-- ─────────────────────── CAPA: PORCIÓN DE UN ALIMENTO ────────────────── -->
+<div class="capa oculto" id="capa-porcion">
+  <header>
+    <button class="icono-btn" id="por-cerrar">✕</button>
+    <div class="marca" id="por-titulo">Porción</div>
+  </header>
+  <div class="contenido" id="por-contenido"></div>
+  <div class="pie">
+    <button class="btn ancho principal" id="por-guardar">Agregar al diario</button>
+  </div>
+</div>
+
+<!-- ───────────────────────── CAPA: PRIMER ARRANQUE ─────────────────────── -->
+<div class="capa oculto" id="capa-bienvenida">
+  <div class="contenido" id="bienvenida-contenido"></div>
+  <div class="pie">
+    <button class="btn ancho principal" id="bienvenida-listo">Empezar</button>
+  </div>
+</div>
+
+<div id="aviso-flotante" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NutriFoto — registro de comidas con estimación de calorías por fotografía.
+
+   Toda la app vive en este archivo: sin framework, sin compilación, sin
+   dependencias externas. Lo único que necesita internet es el análisis de la
+   foto; el diario, la búsqueda y el historial funcionan sin conexión.
+
+   Los datos se guardan en localStorage (texto) y las fotos en IndexedDB
+   (pesan demasiado para localStorage, que ronda los 5 MB).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const SERVIDOR_POR_DEFECTO = 'https://madera-backend.onrender.com';
+const CLAVE = 'nutrifoto.v1';
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Base de alimentos, por 100 g (o 100 ml en líquidos).
+
+   Formato: [nombre, categoría, kcal, proteína, carbohidratos, grasa, medidas]
+   donde `medidas` son medidas caseras: ['taza', gramos que pesa esa taza].
+
+   Los valores son de tablas de composición de alimentos y de etiquetas
+   nutricionales; en las preparaciones caseras (sancocho, frijoles, guisos) son
+   promedios razonables, porque cada casa las hace distinto. Sirven de
+   referencia, no de medición.
+   ───────────────────────────────────────────────────────────────────────── */
+const BASE = [
+  // ── Cereales, panes y tubérculos ──────────────────────────────────────
+  ['Arroz blanco cocido','Cereales',130,2.7,28,0.3,[['taza',158],['cucharada',20]]],
+  ['Arroz integral cocido','Cereales',112,2.6,24,0.9,[['taza',195]]],
+  ['Arroz con pollo','Platos',170,9,22,5,[['taza',200],['porción',300]]],
+  ['Arroz atollado','Platos',165,7,20,6,[['porción',300]]],
+  ['Arepa antioqueña asada','Cereales',195,4,40,1.5,[['unidad',70]]],
+  ['Arepa de queso','Cereales',250,8,32,9,[['unidad',90]]],
+  ['Arepa de huevo','Cereales',285,8,28,16,[['unidad',110]]],
+  ['Arepa de choclo','Cereales',220,5,35,7,[['unidad',120]]],
+  ['Pan tajado blanco','Cereales',265,9,49,3.2,[['tajada',28]]],
+  ['Pan tajado integral','Cereales',247,13,41,3.4,[['tajada',30]]],
+  ['Pan francés','Cereales',270,9,50,3,[['unidad',60]]],
+  ['Pandebono','Cereales',350,10,40,16,[['unidad',60]]],
+  ['Buñuelo','Cereales',340,10,30,20,[['unidad',60]]],
+  ['Almojábana','Cereales',300,10,35,13,[['unidad',70]]],
+  ['Galleta de soda','Cereales',420,9,70,11,[['unidad',7]]],
+  ['Pasta cocida','Cereales',158,5.8,31,0.9,[['taza',140]]],
+  ['Avena en hojuelas cruda','Cereales',380,13,67,7,[['cucharada',10],['taza',90]]],
+  ['Avena preparada con leche','Bebidas',90,3.5,14,2,[['vaso',250]]],
+  ['Mazamorra con leche','Bebidas',85,3,13,2.5,[['pocillo',250]]],
+  ['Cereal de caja azucarado','Cereales',380,7,84,2,[['taza',30]]],
+  ['Granola','Cereales',450,10,64,17,[['cucharada',12],['taza',110]]],
+  ['Tamal','Platos',200,8,20,9,[['unidad',350]]],
+  ['Envuelto de mazorca','Cereales',220,5,40,5,[['unidad',150]]],
+  ['Papa cocida','Tubérculos',87,2,20,0.1,[['unidad mediana',150]]],
+  ['Papa criolla cocida','Tubérculos',100,2,22,0.2,[['taza',160]]],
+  ['Papas fritas','Tubérculos',312,3.4,41,15,[['porción',120]]],
+  ['Yuca cocida','Tubérculos',160,1.4,38,0.3,[['trozo',100]]],
+  ['Yuca frita','Tubérculos',300,1.5,45,12,[['porción',120]]],
+  ['Plátano verde cocido','Tubérculos',122,1.3,32,0.4,[['trozo',100]]],
+  ['Patacón','Tubérculos',250,1.5,35,11,[['unidad',60]]],
+  ['Tajada de plátano maduro frita','Tubérculos',180,1.3,32,5.5,[['tajada',35]]],
+  ['Plátano maduro asado','Tubérculos',135,1.3,33,0.4,[['unidad',180]]],
+  ['Ñame cocido','Tubérculos',118,1.5,28,0.2,[['trozo',100]]],
+  ['Arracacha cocida','Tubérculos',105,1,25,0.3,[['trozo',100]]],
+
+  // ── Leguminosas ───────────────────────────────────────────────────────
+  ['Fríjol cargamanto cocido','Leguminosas',130,8,22,0.6,[['taza',170],['cucharón',120]]],
+  ['Fríjoles guisados con garra','Leguminosas',160,8,20,5,[['taza',180],['cucharón',120]]],
+  ['Lentejas cocidas','Leguminosas',116,9,20,0.4,[['taza',180]]],
+  ['Garbanzo cocido','Leguminosas',164,8.9,27,2.6,[['taza',160]]],
+  ['Arveja cocida','Leguminosas',84,5.4,15,0.4,[['taza',160]]],
+  ['Soya texturizada cocida','Leguminosas',120,15,8,2,[['taza',150]]],
+
+  // ── Carnes, pescados y huevos ─────────────────────────────────────────
+  ['Pechuga de pollo a la plancha','Carnes',165,31,0,3.6,[['porción',150]]],
+  ['Pechuga de pollo con piel asada','Carnes',197,29,0,8,[['porción',160]]],
+  ['Muslo o pierna de pollo asado','Carnes',209,26,0,11,[['presa',120]]],
+  ['Pollo apanado o frito','Carnes',260,24,8,15,[['presa',140]]],
+  ['Sudado de pollo','Platos',120,11,8,5,[['porción',300]]],
+  ['Carne de res magra asada','Carnes',190,30,0,7,[['porción',150]]],
+  ['Sobrebarriga','Carnes',250,26,0,16,[['porción',150]]],
+  ['Carne molida guisada','Carnes',210,22,3,12,[['porción',120]]],
+  ['Churrasco','Carnes',230,27,0,14,[['porción',200]]],
+  ['Lomo de cerdo asado','Carnes',210,28,0,10,[['porción',150]]],
+  ['Costilla de cerdo','Carnes',290,25,0,21,[['porción',180]]],
+  ['Chicharrón','Carnes',550,28,0,48,[['trozo',40]]],
+  ['Chorizo','Carnes',300,15,2,26,[['unidad',80]]],
+  ['Morcilla','Carnes',320,14,8,26,[['porción',80]]],
+  ['Tocineta','Carnes',540,37,1,42,[['tira',12]]],
+  ['Jamón','Carnes',145,18,2,7,[['tajada',20]]],
+  ['Salchichón','Carnes',300,12,5,26,[['tajada',15]]],
+  ['Salchicha','Carnes',290,11,3,26,[['unidad',45]]],
+  ['Hígado de res','Carnes',165,26,4,4,[['porción',120]]],
+  ['Mojarra frita','Pescados',220,22,5,12,[['unidad',250]]],
+  ['Bagre o pescado sudado','Pescados',130,22,1,4,[['porción',180]]],
+  ['Salmón','Pescados',208,20,0,13,[['porción',150]]],
+  ['Atún en agua','Pescados',116,26,0,1,[['lata',80]]],
+  ['Atún en aceite','Pescados',190,26,0,9,[['lata',80]]],
+  ['Camarón','Pescados',99,24,0,0.3,[['porción',100]]],
+  ['Huevo cocido','Huevos',155,13,1,11,[['unidad',55]]],
+  ['Huevo frito','Huevos',190,13,1,15,[['unidad',60]]],
+  ['Huevos pericos','Huevos',175,12,3,13,[['porción',120]]],
+  ['Clara de huevo','Huevos',52,11,0.7,0.2,[['unidad',33]]],
+
+  // ── Lácteos ───────────────────────────────────────────────────────────
+  ['Leche entera','Lácteos',61,3.2,4.8,3.3,[['vaso',250],['pocillo',200]]],
+  ['Leche semidescremada','Lácteos',47,3.3,5,1.5,[['vaso',250]]],
+  ['Leche descremada','Lácteos',35,3.4,5,0.2,[['vaso',250]]],
+  ['Yogur natural','Lácteos',61,3.5,4.7,3.3,[['vaso',200]]],
+  ['Yogur con dulce','Lácteos',85,3,14,2,[['vaso',200]]],
+  ['Yogur griego natural','Lácteos',97,9,4,5,[['vaso',150]]],
+  ['Kumis','Lácteos',70,3,5,4,[['vaso',200]]],
+  ['Queso campesino','Lácteos',200,17,3,13,[['tajada',30]]],
+  ['Quesito antioqueño','Lácteos',280,18,3,22,[['porción',40]]],
+  ['Queso costeño','Lácteos',300,22,2,23,[['tajada',30]]],
+  ['Queso mozzarella','Lácteos',280,22,2,21,[['tajada',25]]],
+  ['Cuajada','Lácteos',180,16,3,11,[['porción',60]]],
+  ['Mantequilla','Grasas',717,0.9,0.1,81,[['cucharadita',5]]],
+  ['Suero costeño','Lácteos',250,4,4,24,[['cucharada',15]]],
+
+  // ── Frutas ────────────────────────────────────────────────────────────
+  ['Banano','Frutas',89,1.1,23,0.3,[['unidad',120]]],
+  ['Manzana','Frutas',52,0.3,14,0.2,[['unidad',180]]],
+  ['Naranja','Frutas',47,0.9,12,0.1,[['unidad',150]]],
+  ['Mandarina','Frutas',53,0.8,13,0.3,[['unidad',100]]],
+  ['Papaya','Frutas',43,0.5,11,0.3,[['taza',145]]],
+  ['Piña','Frutas',50,0.5,13,0.1,[['taza',165]]],
+  ['Mango','Frutas',60,0.8,15,0.4,[['unidad',200]]],
+  ['Guayaba','Frutas',68,2.6,14,1,[['unidad',90]]],
+  ['Maracuyá','Frutas',97,2.2,23,0.7,[['unidad',60]]],
+  ['Lulo','Frutas',25,0.6,6,0.1,[['unidad',80]]],
+  ['Mora','Frutas',43,1.4,10,0.5,[['taza',150]]],
+  ['Fresa','Frutas',32,0.7,8,0.3,[['taza',150]]],
+  ['Uva','Frutas',69,0.7,18,0.2,[['taza',150]]],
+  ['Sandía','Frutas',30,0.6,8,0.2,[['tajada',280]]],
+  ['Melón','Frutas',34,0.8,8,0.2,[['taza',160]]],
+  ['Pera','Frutas',57,0.4,15,0.1,[['unidad',180]]],
+  ['Granadilla','Frutas',74,1.5,17,0.3,[['unidad',80]]],
+  ['Tomate de árbol','Frutas',50,2,11,0.6,[['unidad',100]]],
+  ['Aguacate','Frutas',160,2,9,15,[['unidad',200],['tajada',30]]],
+  ['Coco','Frutas',354,3.3,15,33,[['trozo',45]]],
+
+  // ── Verduras ──────────────────────────────────────────────────────────
+  ['Tomate','Verduras',18,0.9,3.9,0.2,[['unidad',120]]],
+  ['Cebolla','Verduras',40,1.1,9,0.1,[['unidad',110]]],
+  ['Lechuga','Verduras',15,1.4,2.9,0.2,[['taza',70]]],
+  ['Zanahoria','Verduras',41,0.9,10,0.2,[['unidad',80]]],
+  ['Pepino','Verduras',15,0.7,3.6,0.1,[['unidad',150]]],
+  ['Brócoli cocido','Verduras',35,2.4,7,0.4,[['taza',150]]],
+  ['Espinaca','Verduras',23,2.9,3.6,0.4,[['taza',60]]],
+  ['Ahuyama cocida','Verduras',26,1,6.5,0.1,[['taza',150]]],
+  ['Habichuela cocida','Verduras',31,1.8,7,0.1,[['taza',125]]],
+  ['Remolacha cocida','Verduras',43,1.6,10,0.2,[['unidad',80]]],
+  ['Pimentón','Verduras',31,1,6,0.3,[['unidad',120]]],
+  ['Repollo','Verduras',25,1.3,6,0.1,[['taza',90]]],
+  ['Ensalada mixta sin aderezo','Verduras',30,1.2,5,0.5,[['porción',120]]],
+  ['Hogao','Salsas',90,1,6,7,[['cucharada',20]]],
+
+  // ── Platos y sopas ────────────────────────────────────────────────────
+  ['Bandeja paisa','Platos',230,12,20,12,[['porción',600]]],
+  ['Sancocho de gallina','Sopas',90,7,8,3.5,[['plato',400]]],
+  ['Ajiaco','Sopas',85,6,9,2.8,[['plato',400]]],
+  ['Caldo de costilla','Sopas',45,4,2,2,[['plato',350]]],
+  ['Sopa de verduras','Sopas',45,1.5,7,1.2,[['plato',350]]],
+  ['Changua','Sopas',60,3,5,3,[['plato',300]]],
+  ['Crema de ahuyama','Sopas',70,2,9,3,[['plato',300]]],
+  ['Hamburguesa','Platos',250,13,22,12,[['unidad',220]]],
+  ['Perro caliente','Platos',245,10,22,13,[['unidad',180]]],
+  ['Pizza','Platos',266,11,33,10,[['porción',120]]],
+  ['Empanada','Platos',320,8,32,18,[['unidad',80]]],
+  ['Pastel de pollo','Platos',350,9,33,20,[['unidad',120]]],
+  ['Salchipapa','Platos',300,8,30,17,[['porción',300]]],
+  ['Lasaña','Platos',165,9,14,8,[['porción',300]]],
+  ['Espagueti a la boloñesa','Platos',145,7,18,5,[['porción',350]]],
+  ['Sushi','Platos',145,6,25,2,[['pieza',30]]],
+  ['Sándwich de jamón y queso','Platos',260,13,28,10,[['unidad',150]]],
+
+  // ── Bebidas ───────────────────────────────────────────────────────────
+  ['Agua de panela','Bebidas',40,0,10,0,[['vaso',250]]],
+  ['Café negro','Bebidas',2,0.2,0.3,0,[['pocillo',150]]],
+  ['Café con leche','Bebidas',45,2.4,4,2,[['pocillo',200]]],
+  ['Chocolate en leche','Bebidas',95,3.5,12,4,[['pocillo',200]]],
+  ['Jugo natural en agua','Bebidas',40,0.4,9,0.1,[['vaso',250]]],
+  ['Jugo natural en leche','Bebidas',75,2.5,12,2,[['vaso',250]]],
+  ['Jugo de naranja','Bebidas',45,0.7,10,0.2,[['vaso',250]]],
+  ['Jugo de caja','Bebidas',48,0.2,12,0,[['caja',200]]],
+  ['Gaseosa','Bebidas',42,0,10.6,0,[['vaso',250],['lata',330]]],
+  ['Gaseosa light','Bebidas',0.3,0,0.1,0,[['lata',330]]],
+  ['Malta','Bebidas',70,0.4,16,0,[['botella',330]]],
+  ['Cerveza','Bebidas',43,0.5,3.6,0,[['botella',330]]],
+  ['Vino tinto','Bebidas',85,0.1,2.6,0,[['copa',150]]],
+  ['Aguardiente o ron','Bebidas',231,0,0,0,[['trago',30]]],
+  ['Bebida energizante','Bebidas',45,0,11,0,[['lata',250]]],
+  ['Té sin azúcar','Bebidas',1,0,0.2,0,[['pocillo',250]]],
+
+  // ── Snacks y dulces ───────────────────────────────────────────────────
+  ['Papas de paquete','Snacks',536,6,53,34,[['paquete',40]]],
+  ['Maní','Snacks',567,26,16,49,[['puñado',30]]],
+  ['Almendras','Snacks',579,21,22,50,[['puñado',30]]],
+  ['Nueces','Snacks',654,15,14,65,[['puñado',30]]],
+  ['Chocolatina','Dulces',535,7,59,30,[['unidad',40]]],
+  ['Galletas dulces','Dulces',480,6,65,21,[['paquete',40]]],
+  ['Helado','Dulces',207,3.5,24,11,[['bola',60]]],
+  ['Torta','Dulces',350,5,50,14,[['porción',90]]],
+  ['Brownie','Dulces',420,5,55,20,[['unidad',60]]],
+  ['Arequipe','Dulces',315,6,55,7,[['cucharada',20]]],
+  ['Bocadillo de guayaba','Dulces',280,0.4,70,0.1,[['unidad',30]]],
+  ['Obleas','Dulces',380,5,60,13,[['unidad',80]]],
+  ['Postre de natas','Dulces',300,4,40,14,[['porción',120]]],
+  ['Panela','Dulces',350,0.5,90,0,[['cucharada',15]]],
+  ['Azúcar','Dulces',400,0,100,0,[['cucharadita',5],['cucharada',12]]],
+  ['Miel','Dulces',304,0.3,82,0,[['cucharada',21]]],
+
+  // ── Grasas y salsas ───────────────────────────────────────────────────
+  ['Aceite','Grasas',884,0,0,100,[['cucharada',14],['cucharadita',5]]],
+  ['Mayonesa','Salsas',680,1,2,75,[['cucharada',15]]],
+  ['Salsa de tomate','Salsas',100,1,25,0.1,[['cucharada',17]]],
+  ['Ají','Salsas',30,1,6,0.3,[['cucharada',15]]],
+  ['Guacamole','Salsas',150,2,8,13,[['cucharada',25]]],
+
+  // ── Suplementos ───────────────────────────────────────────────────────
+  ['Proteína en polvo','Suplementos',380,78,8,4,[['medida',30]]],
+];
+
+/** Convierte una fila de BASE en un objeto manejable. */
+function desdeBase(fila, indice){
+  return {
+    id:'b'+indice, nombre:fila[0], categoria:fila[1],
+    por100:{kcal:fila[2], prot:fila[3], carb:fila[4], gras:fila[5]},
+    medidas:fila[6] || [], origen:'base',
+  };
+}
+const ALIMENTOS = BASE.map(desdeBase);
+
+/* ── Comidas del día ───────────────────────────────────────────────────
+   Los nombres son los que se usan en Colombia: "media mañana" y "onces"
+   hacen el papel de los snacks de media jornada. */
+const COMIDAS = [
+  {id:'desayuno', nombre:'Desayuno', icono:'🌅'},
+  {id:'media', nombre:'Media mañana', icono:'☕'},
+  {id:'almuerzo', nombre:'Almuerzo', icono:'🍽️'},
+  {id:'onces', nombre:'Onces', icono:'🥪'},
+  {id:'cena', nombre:'Cena', icono:'🌙'},
+];
+
+/* ═════════════════════════════ ESTADO ══════════════════════════════════ */
+
+const ESTADO_INICIAL = {
+  perfil:{edad:null, sexo:'m', peso:null, estatura:null, actividad:1.55, objetivo:'mantener'},
+  meta:{manual:false, kcal:2000, prot:120, carb:225, gras:67},
+  registros:{},          // 'AAAA-MM-DD' -> [registro]
+  pesos:[],              // [{fecha, valor}]
+  propios:[],            // alimentos creados por el usuario
+  ajustes:{tema:'auto', servidor:SERVIDOR_POR_DEFECTO, bienvenida:false},
+};
+
+let ESTADO = cargar();
+let fechaActual = hoy();
+
+function cargar(){
+  try{
+    const bruto = localStorage.getItem(CLAVE);
+    if(!bruto) return estructurar({});
+    return estructurar(JSON.parse(bruto));
+  }catch(e){
+    console.warn('No se pudo leer lo guardado, se empieza de cero.', e);
+    return estructurar({});
+  }
+}
+
+/** Rellena lo que falte: así una versión nueva nunca rompe unos datos viejos. */
+function estructurar(datos){
+  const base = JSON.parse(JSON.stringify(ESTADO_INICIAL));
+  return {
+    perfil:{...base.perfil, ...(datos.perfil||{})},
+    meta:{...base.meta, ...(datos.meta||{})},
+    registros:datos.registros || {},
+    pesos:Array.isArray(datos.pesos) ? datos.pesos : [],
+    propios:Array.isArray(datos.propios) ? datos.propios : [],
+    ajustes:{...base.ajustes, ...(datos.ajustes||{})},
+  };
+}
+
+function guardar(){
+  try{
+    localStorage.setItem(CLAVE, JSON.stringify(ESTADO));
+  }catch(e){
+    avisar('No se pudo guardar: el almacenamiento está lleno.');
+    console.error(e);
+  }
+}
+
+/* ═════════════════════════ UTILIDADES ══════════════════════════════════ */
+
+function hoy(){ return aFecha(new Date()); }
+function aFecha(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function desdeFecha(txt){
+  const [a,m,d] = txt.split('-').map(Number);
+  return new Date(a, m-1, d);
+}
+function sumarDias(txt, n){
+  const d = desdeFecha(txt); d.setDate(d.getDate()+n); return aFecha(d);
+}
+function nombreFecha(txt){
+  if(txt === hoy()) return 'Hoy';
+  if(txt === sumarDias(hoy(),-1)) return 'Ayer';
+  if(txt === sumarDias(hoy(),1)) return 'Mañana';
+  const d = desdeFecha(txt);
+  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return dias[d.getDay()] + ' ' + d.getDate() + ' ' + meses[d.getMonth()];
+}
+const red = (n, dec=0) => { const f = 10**dec; return Math.round((Number(n)||0)*f)/f; };
+const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function esc(txt){
+  return String(txt ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+/** Quita tildes para que "frijoles" encuentre "fríjoles". */
+function normalizar(txt){
+  return String(txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+
+let temporizadorAviso;
+function avisar(mensaje){
+  const caja = document.getElementById('aviso-flotante');
+  caja.textContent = mensaje;
+  caja.classList.add('visible');
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = setTimeout(()=>caja.classList.remove('visible'), 2800);
+}
+
+/* ═══════════════════ METAS: cálculo y macronutrientes ══════════════════ */
+
+/**
+ * Mifflin-St Jeor para el metabolismo basal, por el factor de actividad, y
+ * ajustado según el objetivo. Es la fórmula estándar en consulta: sirve como
+ * punto de partida, no como verdad. Por eso la meta se puede editar a mano.
+ */
+function calcularMeta(perfil){
+  const {edad, sexo, peso, estatura, actividad, objetivo} = perfil;
+  if(!edad || !peso || !estatura) return null;
+
+  const basal = 10*peso + 6.25*estatura - 5*edad + (sexo === 'f' ? -161 : 5);
+  const gasto = basal * Number(actividad || 1.55);
+  const kcal = Math.round(
+    objetivo === 'bajar' ? gasto * 0.83 :
+    objetivo === 'subir' ? gasto * 1.12 : gasto
+  );
+
+  // Proteína por kilo de peso; grasa como porcentaje de las calorías; el resto,
+  // carbohidratos. Al bajar de peso sube la proteína, que es lo que protege el
+  // músculo cuando se come menos.
+  const prot = Math.round(peso * (objetivo === 'bajar' ? 2.0 : objetivo === 'subir' ? 1.8 : 1.6));
+  const gras = Math.round(kcal * 0.27 / 9);
+  const carb = Math.max(0, Math.round((kcal - prot*4 - gras*9) / 4));
+
+  return {kcal, prot, carb, gras};
+}
+
+/** La meta vigente: la calculada, o la que el usuario escribió a mano. */
+function metaVigente(){
+  if(ESTADO.meta.manual) return ESTADO.meta;
+  const calculada = calcularMeta(ESTADO.perfil);
+  return calculada ? {manual:false, ...calculada} : ESTADO.meta;
+}
+
+/* ═══════════════════════ FOTOS EN INDEXEDDB ════════════════════════════ */
+
+/**
+ * Las fotos van aparte de localStorage: una miniatura pesa ~15 KB y el cupo de
+ * localStorage (unos 5 MB) se agotaría en unas semanas de registro diario.
+ */
+const FotosDB = (()=>{
+  let promesa;
+  function abrir(){
+    if(promesa) return promesa;
+    promesa = new Promise((resolver, rechazar)=>{
+      const pet = indexedDB.open('nutrifoto', 1);
+      pet.onupgradeneeded = () => pet.result.createObjectStore('fotos');
+      pet.onsuccess = () => resolver(pet.result);
+      pet.onerror = () => rechazar(pet.error);
+    });
+    return promesa;
+  }
+  return {
+    async poner(clave, dato){
+      try{
+        const db = await abrir();
+        await new Promise((ok, mal)=>{
+          const t = db.transaction('fotos','readwrite');
+          t.objectStore('fotos').put(dato, clave);
+          t.oncomplete = ok; t.onerror = () => mal(t.error);
+        });
+      }catch(e){ console.warn('No se pudo guardar la foto', e); }
+    },
+    async traer(clave){
+      try{
+        const db = await abrir();
+        return await new Promise((ok, mal)=>{
+          const p = db.transaction('fotos').objectStore('fotos').get(clave);
+          p.onsuccess = () => ok(p.result || null);
+          p.onerror = () => mal(p.error);
+        });
+      }catch(e){ return null; }
+    },
+    async borrar(clave){
+      try{
+        const db = await abrir();
+        const t = db.transaction('fotos','readwrite');
+        t.objectStore('fotos').delete(clave);
+      }catch(e){ /* si no se puede borrar la miniatura, no pasa nada */ }
+    },
+    async vaciar(){
+      try{
+        const db = await abrir();
+        const t = db.transaction('fotos','readwrite');
+        t.objectStore('fotos').clear();
+      }catch(e){ /* nada que hacer */ }
+    },
+  };
+})();
+
+/* ═══════════════════ CÁLCULOS SOBRE ALIMENTOS Y REGISTROS ═════════════ */
+
+/**
+ * Un alimento dentro de un registro. Guarda SIEMPRE los valores por 100 g,
+ * que es lo que permite recalcular cuando el usuario cambia la porción; la
+ * cantidad y la unidad son solo la forma en que se muestra.
+ */
+function crearAlimento({nombre, por100, gramos, unidad='g', cantidad=null, medidas=[], confianza=null}){
+  return {
+    uid:id(), nombre, por100,
+    medidas: medidas || [],
+    unidad, cantidad: cantidad ?? gramos, gramos,
+    confianza,
+  };
+}
+
+/** Gramos que pesa una unidad de la medida elegida ('g' pesa 1). */
+function gramosPorMedida(alimento, unidad){
+  if(unidad === 'g') return 1;
+  const m = (alimento.medidas||[]).find(x => x[0] === unidad);
+  return m ? m[1] : 1;
+}
+
+function aportaDe(alimento){
+  const f = (alimento.gramos || 0) / 100;
+  const p = alimento.por100 || {kcal:0,prot:0,carb:0,gras:0};
+  return {kcal:p.kcal*f, prot:p.prot*f, carb:p.carb*f, gras:p.gras*f};
+}
+
+function totalesDe(alimentos){
+  return (alimentos||[]).reduce((acc,a)=>{
+    const x = aportaDe(a);
+    return {kcal:acc.kcal+x.kcal, prot:acc.prot+x.prot, carb:acc.carb+x.carb, gras:acc.gras+x.gras};
+  }, {kcal:0, prot:0, carb:0, gras:0});
+}
+
+function registrosDe(fecha){ return ESTADO.registros[fecha] || []; }
+
+function totalesDelDia(fecha){
+  return registrosDe(fecha).reduce((acc,r)=>{
+    const t = totalesDe(r.alimentos);
+    return {kcal:acc.kcal+t.kcal, prot:acc.prot+t.prot, carb:acc.carb+t.carb, gras:acc.gras+t.gras};
+  }, {kcal:0, prot:0, carb:0, gras:0});
+}
+
+function guardarRegistro(fecha, registro){
+  if(!ESTADO.registros[fecha]) ESTADO.registros[fecha] = [];
+  const i = ESTADO.registros[fecha].findIndex(r => r.id === registro.id);
+  if(i >= 0) ESTADO.registros[fecha][i] = registro;
+  else ESTADO.registros[fecha].push(registro);
+  guardar();
+}
+
+function borrarRegistro(fecha, idRegistro){
+  const lista = ESTADO.registros[fecha] || [];
+  const i = lista.findIndex(r => r.id === idRegistro);
+  if(i < 0) return;
+  if(lista[i].foto) FotosDB.borrar(lista[i].id);
+  lista.splice(i,1);
+  if(lista.length === 0) delete ESTADO.registros[fecha];
+  guardar();
+}
+
+/* ═════════════════════════ VISTA: DIARIO ═══════════════════════════════ */
+
+function pintarInicio(){
+  document.getElementById('etiqueta-fecha').textContent = nombreFecha(fechaActual);
+  document.getElementById('selector-fecha').value = fechaActual;
+
+  const meta = metaVigente();
+  const t = totalesDelDia(fechaActual);
+
+  // Anillo. La circunferencia de r=52 es 2πr ≈ 326.7.
+  const circunferencia = 2 * Math.PI * 52;
+  const proporcion = meta.kcal > 0 ? Math.min(t.kcal / meta.kcal, 1) : 0;
+  const anillo = document.getElementById('anillo-valor');
+  anillo.setAttribute('stroke-dasharray', (circunferencia*proporcion).toFixed(1) + ' ' + circunferencia.toFixed(1));
+  anillo.style.stroke = t.kcal > meta.kcal ? 'var(--carb)' : 'var(--acento)';
+  // Con 0 kcal el remate redondo dibujaría un punto suelto arriba del anillo.
+  anillo.style.strokeLinecap = proporcion > 0 ? 'round' : 'butt';
+
+  document.getElementById('kcal-consumidas').textContent = red(t.kcal);
+  document.getElementById('kcal-meta').textContent = 'de ' + red(meta.kcal) + ' kcal';
+
+  const macros = [['prot','prot'],['carb','carb'],['gras','gras']];
+  macros.forEach(([clave])=>{
+    const valor = t[clave], objetivo = meta[clave] || 0;
+    document.getElementById('cifra-'+clave).textContent = red(valor) + ' / ' + red(objetivo) + ' g';
+    document.getElementById('barra-'+clave).style.width =
+      (objetivo > 0 ? Math.min(valor/objetivo*100, 100) : 0) + '%';
+  });
+
+  const faltan = red(meta.kcal - t.kcal);
+  document.getElementById('restante').textContent =
+    faltan >= 0 ? 'Te quedan ' + faltan + ' kcal para la meta del día.'
+                : 'Vas ' + Math.abs(faltan) + ' kcal por encima de la meta del día.';
+
+  pintarComidas();
+}
+
+function pintarComidas(){
+  const contenedor = document.getElementById('lista-comidas');
+  const registros = registrosDe(fechaActual);
+  contenedor.innerHTML = '';
+
+  COMIDAS.forEach(comida=>{
+    const propios = registros.filter(r => r.comida === comida.id);
+    const kcal = propios.reduce((s,r)=> s + totalesDe(r.alimentos).kcal, 0);
+
+    const bloque = document.createElement('div');
+    bloque.className = 'comida';
+    bloque.innerHTML =
+      '<div class="cabeza">' +
+        '<h3>' + comida.icono + ' ' + esc(comida.nombre) + '</h3>' +
+        (kcal ? '<span class="kcal">' + red(kcal) + ' kcal</span>' : '') +
+        '<button class="mas" data-comida="' + comida.id + '" aria-label="Agregar a ' + esc(comida.nombre) + '">+</button>' +
+      '</div>';
+
+    if(propios.length === 0){
+      const vacio = document.createElement('div');
+      vacio.className = 'vacio';
+      vacio.textContent = 'Sin registros';
+      bloque.appendChild(vacio);
+    } else {
+      propios.forEach(r => bloque.appendChild(tarjetaRegistro(r)));
+    }
+    contenedor.appendChild(bloque);
+  });
+
+  contenedor.querySelectorAll('.mas').forEach(b=>{
+    b.onclick = () => { comidaElegida = b.dataset.comida; irA('buscar'); };
+  });
+}
+
+function tarjetaRegistro(registro){
+  const t = totalesDe(registro.alimentos);
+  const nombres = registro.alimentos.map(a=>a.nombre).join(', ');
+  const dudoso = registro.alimentos.some(a => a.confianza === 'baja' || a.confianza === 'media');
+
+  const nodo = document.createElement('div');
+  nodo.className = 'registro';
+  nodo.innerHTML =
+    (registro.foto ? '<img class="foto" alt="" data-foto="' + registro.id + '">' : '') +
+    '<div class="cuerpo">' +
+      '<div class="titulo">' + esc(registro.titulo || nombres.split(',')[0] || 'Comida') + '</div>' +
+      (registro.alimentos.length > 1 ? '<div class="detalle">' + esc(nombres) + '</div>' : '') +
+      '<div class="cifras">P ' + red(t.prot) + ' g · C ' + red(t.carb) + ' g · G ' + red(t.gras) + ' g' +
+        (registro.hora ? ' · ' + esc(registro.hora) : '') + '</div>' +
+      (dudoso ? '<div style="margin-top:6px"><span class="chip baja">estimado sin confirmar</span></div>' : '') +
+    '</div>' +
+    '<div class="acciones">' +
+      '<span class="kcal-grande">' + red(t.kcal) + '</span>' +
+      '<div class="botones">' +
+        '<button class="btn sutil" data-editar="' + registro.id + '">Editar</button>' +
+        '<button class="btn sutil" data-repetir="' + registro.id + '">Repetir</button>' +
+      '</div>' +
+    '</div>';
+
+  const img = nodo.querySelector('[data-foto]');
+  if(img) FotosDB.traer(registro.id).then(dato => { if(dato) img.src = dato; });
+
+  nodo.querySelector('[data-editar]').onclick = () => abrirRevisionDeRegistro(registro);
+  nodo.querySelector('[data-repetir]').onclick = () => repetir(registro);
+  return nodo;
+}
+
+async function repetir(registro){
+  const copia = JSON.parse(JSON.stringify(registro));
+  copia.id = id();
+  copia.hora = horaAhora();
+  copia.alimentos.forEach(a => a.uid = id());
+  if(registro.foto){
+    const dato = await FotosDB.traer(registro.id);
+    if(dato) await FotosDB.poner(copia.id, dato); else copia.foto = false;
+  }
+  guardarRegistro(hoy(), copia);
+  if(fechaActual !== hoy()) fechaActual = hoy();
+  pintarInicio();
+  avisar('Repetido en el diario de hoy');
+}
+
+function horaAhora(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/** A qué comida corresponde la hora actual, para no hacer elegir cuando es obvio. */
+function comidaSegunHora(){
+  const h = new Date().getHours();
+  if(h < 10) return 'desayuno';
+  if(h < 11.5) return 'media';
+  if(h < 15) return 'almuerzo';
+  if(h < 18) return 'onces';
+  return 'cena';
+}
+
+/* ═════════════════════ FOTO: captura y análisis ════════════════════════ */
+
+let comidaElegida = null;
+
+document.getElementById('btn-camara').onclick = ()=>{
+  comidaElegida = comidaSegunHora();
+  document.getElementById('entrada-foto').click();
+};
+
+document.getElementById('entrada-foto').onchange = async (e)=>{
+  const archivo = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!archivo) return;
+  try{
+    const grande = await reducirImagen(archivo, 1024, 0.82);
+    const mini   = await reducirImagen(archivo, 420, 0.7);
+    analizarFoto(grande, mini);
+  }catch(err){
+    console.error(err);
+    avisar('No se pudo leer la imagen.');
+  }
+};
+
+/** Reduce la foto antes de enviarla: menos datos, menos espera y menos batería. */
+function reducirImagen(archivo, ladoMaximo, calidad){
+  return new Promise((resolver, rechazar)=>{
+    const lector = new FileReader();
+    lector.onerror = () => rechazar(new Error('lectura'));
+    lector.onload = ()=>{
+      const img = new Image();
+      img.onerror = () => rechazar(new Error('decodificación'));
+      img.onload = ()=>{
+        const escala = Math.min(1, ladoMaximo / Math.max(img.width, img.height));
+        const lienzo = document.createElement('canvas');
+        lienzo.width = Math.round(img.width * escala);
+        lienzo.height = Math.round(img.height * escala);
+        lienzo.getContext('2d').drawImage(img, 0, 0, lienzo.width, lienzo.height);
+        resolver(lienzo.toDataURL('image/jpeg', calidad));
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+async function analizarFoto(dataUrlGrande, dataUrlMini){
+  abrirCapa('capa-revision');
+  document.getElementById('rev-titulo').textContent = 'Analizando';
+  document.getElementById('rev-pie').style.flexDirection = '';
+  document.getElementById('rev-pie').innerHTML = '';
+  const contenido = document.getElementById('rev-contenido');
+  contenido.innerHTML =
+    '<img class="foto-grande" src="' + dataUrlMini + '" alt="">' +
+    '<div class="cargando"><div class="giro"></div>' +
+      '<div><b id="paso-analisis">Mirando la foto…</b>' +
+      '<div class="pequeno apagado" style="margin-top:4px">Estimando alimentos, porciones y calorías.</div></div>' +
+    '</div>';
+
+  if(!navigator.onLine){
+    errorDeAnalisis('Sin conexión a internet.',
+      'El análisis por foto necesita internet. El registro manual y el diario funcionan igual sin conexión.');
+    return;
+  }
+
+  const paso = document.getElementById('paso-analisis');
+  const avisos = [
+    [7000,  'Despertando el servidor…'],
+    [16000, 'El servidor estaba dormido, esto tarda un poco más…'],
+    [40000, 'Sigue trabajando, no cierres la pantalla…'],
+  ].map(([ms,txt]) => setTimeout(()=>{ if(paso) paso.textContent = txt; }, ms));
+
+  const control = new AbortController();
+  const corte = setTimeout(()=>control.abort(), 150000);
+
+  try{
+    const respuesta = await fetch(servidor() + '/api/analizar-comida', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({imagen_base64: dataUrlGrande}),
+      signal: control.signal,
+    });
+    const cuerpo = await respuesta.json().catch(()=>null);
+
+    if(!respuesta.ok || !cuerpo || cuerpo.ok === false){
+      const err = cuerpo && cuerpo.error;
+      errorDeAnalisis(
+        err ? err.mensaje : 'El servidor respondió con un error (' + respuesta.status + ').',
+        err && err.detalle ? err.detalle : ''
+      );
+      return;
+    }
+
+    const resultado = cuerpo.resultado || {};
+    const detectados = resultado.alimentos_detectados || [];
+
+    if(detectados.length === 0){
+      errorDeAnalisis('No se reconoció comida en la foto.',
+        resultado.notas || 'Prueba con el plato completo dentro del encuadre y buena luz.');
+      return;
+    }
+
+    const alimentos = detectados.map(a => crearAlimento({
+      nombre: a.nombre,
+      por100: {
+        kcal: a.por_100g ? a.por_100g.calorias : 0,
+        prot: a.por_100g ? a.por_100g.proteina_g : 0,
+        carb: a.por_100g ? a.por_100g.carbohidratos_g : 0,
+        gras: a.por_100g ? a.por_100g.grasas_g : 0,
+      },
+      gramos: a.gramos_aproximados,
+      unidad: 'g',
+      cantidad: a.gramos_aproximados,
+      // La unidad casera que vio el modelo se ofrece como medida alternativa:
+      // "2 tajadas" es más fácil de corregir que "70 g".
+      medidas: (a.unidad && !['g','ml','gr','gramos'].includes(String(a.unidad).toLowerCase()) && a.cantidad_estimada > 0)
+        ? [[a.unidad, red(a.gramos_aproximados / a.cantidad_estimada)]]
+        : [],
+      confianza: a.confianza,
+    }));
+
+    await FotosDB.poner('temporal', dataUrlMini);
+    abrirRevision({
+      alimentos,
+      notas: resultado.notas || '',
+      comida: comidaElegida || comidaSegunHora(),
+      fotoTemporal: dataUrlMini,
+      modelo: cuerpo.modelo,
+    });
+  }catch(error){
+    if(error.name === 'AbortError'){
+      errorDeAnalisis('El análisis tardó demasiado.', 'Reintenta en un momento o registra la comida a mano.');
+    }else{
+      console.error(error);
+      errorDeAnalisis('No se pudo contactar el servidor de análisis.',
+        'Revisa tu conexión. También puedes registrar la comida a mano mientras tanto.');
+    }
+  }finally{
+    avisos.forEach(clearTimeout);
+    clearTimeout(corte);
+  }
+}
+
+function errorDeAnalisis(titulo, detalle){
+  document.getElementById('rev-titulo').textContent = 'No se pudo analizar';
+  document.getElementById('rev-contenido').innerHTML =
+    '<div class="tarjeta" style="margin-top:20px">' +
+      '<h2 style="color:var(--alerta)">' + esc(titulo) + '</h2>' +
+      (detalle ? '<div class="pequeno apagado">' + esc(detalle) + '</div>' : '') +
+    '</div>';
+  document.getElementById('rev-pie').style.flexDirection = '';
+  document.getElementById('rev-pie').innerHTML =
+    '<button class="btn" id="err-reintentar">Tomar otra foto</button>' +
+    '<button class="btn principal" style="flex:1" id="err-manual">Registrar a mano</button>';
+  document.getElementById('err-reintentar').onclick = ()=>{
+    cerrarCapa('capa-revision');
+    document.getElementById('entrada-foto').click();
+  };
+  document.getElementById('err-manual').onclick = ()=>{
+    cerrarCapa('capa-revision');
+    irA('buscar');
+    document.getElementById('campo-buscar').focus();
+  };
+}
+
+/* ═══════════════════ PANTALLA DE REVISIÓN Y AJUSTE ═════════════════════ */
+
+let revision = null;   // {alimentos, comida, notas, fotoTemporal, registroExistente, fecha}
+
+function abrirRevision(datos){
+  revision = {
+    alimentos: datos.alimentos,
+    comida: datos.comida || comidaSegunHora(),
+    notas: datos.notas || '',
+    fotoTemporal: datos.fotoTemporal || null,
+    registro: datos.registro || null,
+    fecha: datos.fecha || fechaActual,
+    modelo: datos.modelo || null,
+  };
+  abrirCapa('capa-revision');
+  pintarRevision();
+}
+
+function abrirRevisionDeRegistro(registro){
+  const copia = JSON.parse(JSON.stringify(registro));
+  abrirRevision({
+    alimentos: copia.alimentos, comida: copia.comida, notas: copia.notas,
+    registro: copia, fecha: fechaActual,
+  });
+}
+
+function pintarRevision(){
+  const esNuevoDeFoto = !revision.registro && revision.fotoTemporal;
+  document.getElementById('rev-titulo').textContent = revision.registro ? 'Editar comida' : 'Revisar comida';
+
+  const contenido = document.getElementById('rev-contenido');
+  contenido.innerHTML = '';
+
+  if(revision.fotoTemporal){
+    const img = document.createElement('img');
+    img.className = 'foto-grande'; img.src = revision.fotoTemporal; img.alt = '';
+    contenido.appendChild(img);
+  }
+
+  if(esNuevoDeFoto){
+    const aviso = document.createElement('div');
+    aviso.className = 'aviso';
+    aviso.innerHTML = '<b>Esto es un estimado.</b> Ajusta las cantidades que no cuadren y ' +
+      'elimina lo que no había en el plato. Si el estimado te sirve tal cual, guarda y listo.';
+    contenido.appendChild(aviso);
+  }
+
+  if(revision.notas){
+    const notas = document.createElement('div');
+    notas.className = 'aviso';
+    notas.innerHTML = '<b>Lo que no se pudo determinar:</b> ' + esc(revision.notas);
+    contenido.appendChild(notas);
+  }
+
+  // Selector de comida.
+  const selector = document.createElement('div');
+  selector.style.marginBottom = '14px';
+  selector.innerHTML = '<span class="pequeno apagado" style="display:block; margin-bottom:6px; font-weight:600">¿En qué comida?</span>' +
+    '<div class="opciones">' + COMIDAS.map(c =>
+      '<button data-comida="' + c.id + '" aria-pressed="' + (c.id === revision.comida) + '">' + esc(c.nombre) + '</button>'
+    ).join('') + '</div>';
+  selector.querySelectorAll('[data-comida]').forEach(b=>{
+    b.onclick = ()=>{ revision.comida = b.dataset.comida; pintarRevision(); };
+  });
+  contenido.appendChild(selector);
+
+  // Alimentos.
+  const lista = document.createElement('div');
+  revision.alimentos.forEach(a => lista.appendChild(filaAlimento(a)));
+  contenido.appendChild(lista);
+
+  const agregar = document.createElement('button');
+  agregar.className = 'btn ancho';
+  agregar.textContent = '+ Agregar un alimento que falta';
+  agregar.onclick = ()=>{
+    modoBusqueda = 'revision';
+    cerrarCapa('capa-revision');
+    irA('buscar');
+    document.getElementById('campo-buscar').focus();
+  };
+  contenido.appendChild(agregar);
+
+  // El total vive en el pie, junto al botón de guardar: así se ve siempre, sin
+  // taparle la lista al usuario mientras ajusta las cantidades.
+  const pie = document.getElementById('rev-pie');
+  pie.style.flexDirection = 'column';
+  pie.innerHTML =
+    '<div class="fila entre" id="rev-total" style="width:100%"></div>' +
+    '<div class="fila" style="width:100%; gap:10px">' +
+      (revision.registro ? '<button class="btn" id="rev-borrar" style="color:var(--alerta)">Borrar</button>' : '') +
+      '<button class="btn principal" style="flex:1" id="rev-guardar">Guardar</button>' +
+    '</div>';
+  actualizarTotalRevision();
+  document.getElementById('rev-guardar').onclick = guardarRevision;
+  const borrar = document.getElementById('rev-borrar');
+  if(borrar) borrar.onclick = ()=>{
+    if(!confirm('¿Borrar este registro del diario?')) return;
+    borrarRegistro(revision.fecha, revision.registro.id);
+    cerrarCapa('capa-revision');
+    pintarInicio();
+    avisar('Registro borrado');
+  };
+}
+
+function filaAlimento(alimento){
+  const nodo = document.createElement('div');
+  nodo.className = 'item';
+  const unidades = ['g'].concat((alimento.medidas||[]).map(m => m[0]));
+  const x = aportaDe(alimento);
+
+  nodo.innerHTML =
+    '<div class="arriba">' +
+      '<div class="nombre">' + esc(alimento.nombre) +
+        (alimento.confianza ? ' <span class="chip ' + alimento.confianza + '">' + alimento.confianza + '</span>' : '') +
+      '</div>' +
+      '<button class="borrar" aria-label="Quitar">✕</button>' +
+    '</div>' +
+    '<div class="cantidad">' +
+      '<input type="number" inputmode="decimal" step="any" min="0" value="' + red(alimento.cantidad,1) + '">' +
+      '<select>' + unidades.map(u =>
+        '<option value="' + esc(u) + '"' + (u === alimento.unidad ? ' selected' : '') + '>' +
+        (u === 'g' ? 'gramos' : esc(u)) + '</option>').join('') + '</select>' +
+    '</div>' +
+    '<div class="resultado">' +
+      '<span><b>' + red(x.kcal) + '</b> kcal</span>' +
+      '<span>P <b>' + red(x.prot) + '</b> g</span>' +
+      '<span>C <b>' + red(x.carb) + '</b> g</span>' +
+      '<span>G <b>' + red(x.gras) + '</b> g</span>' +
+    '</div>';
+
+  const campo = nodo.querySelector('input');
+  const selector = nodo.querySelector('select');
+  const resultado = nodo.querySelector('.resultado');
+
+  function recalcular(){
+    alimento.cantidad = Math.max(0, Number(campo.value) || 0);
+    alimento.unidad = selector.value;
+    alimento.gramos = alimento.cantidad * gramosPorMedida(alimento, alimento.unidad);
+    // Corregir a mano una porción convierte el estimado en un dato del usuario:
+    // la etiqueta de confianza deja de tener sentido y desaparece.
+    if(alimento.confianza){
+      alimento.confianza = null;
+      const chip = nodo.querySelector('.chip');
+      if(chip) chip.remove();
+    }
+    const y = aportaDe(alimento);
+    resultado.innerHTML =
+      '<span><b>' + red(y.kcal) + '</b> kcal</span>' +
+      '<span>P <b>' + red(y.prot) + '</b> g</span>' +
+      '<span>C <b>' + red(y.carb) + '</b> g</span>' +
+      '<span>G <b>' + red(y.gras) + '</b> g</span>';
+    actualizarTotalRevision();
+  }
+  campo.oninput = recalcular;
+  selector.onchange = ()=>{
+    // Al cambiar de unidad se conserva el peso, no el número: pasar de 150 g a
+    // "taza" debe decir 0,9 tazas, no 150 tazas.
+    const nuevos = gramosPorMedida(alimento, selector.value);
+    campo.value = red(alimento.gramos / nuevos, 1);
+    recalcular();
+  };
+  nodo.querySelector('.borrar').onclick = ()=>{
+    revision.alimentos = revision.alimentos.filter(a => a.uid !== alimento.uid);
+    pintarRevision();
+  };
+  return nodo;
+}
+
+function actualizarTotalRevision(){
+  const caja = document.getElementById('rev-total');
+  if(!caja || !revision) return;
+  const t = totalesDe(revision.alimentos);
+  caja.innerHTML =
+    '<b style="font-size:17px">' + red(t.kcal) + ' kcal</b>' +
+    '<span class="pequeno apagado">P ' + red(t.prot) + ' g · C ' + red(t.carb) + ' g · G ' + red(t.gras) + ' g</span>';
+}
+
+async function guardarRevision(){
+  if(revision.alimentos.length === 0){ avisar('No queda ningún alimento que guardar.'); return; }
+
+  const registro = revision.registro || {id:id(), hora:horaAhora(), foto:false};
+  registro.comida = revision.comida;
+  registro.alimentos = revision.alimentos;
+  registro.notas = revision.notas;
+  registro.titulo = revision.alimentos.length === 1
+    ? revision.alimentos[0].nombre
+    : revision.alimentos[0].nombre + ' y ' + (revision.alimentos.length - 1) + ' más';
+  registro.totales = totalesDe(revision.alimentos);
+
+  if(revision.fotoTemporal && !registro.foto){
+    await FotosDB.poner(registro.id, revision.fotoTemporal);
+    registro.foto = true;
+  }
+
+  guardarRegistro(revision.fecha, registro);
+  cerrarCapa('capa-revision');
+  revision = null;
+  pintarInicio();
+  avisar('Guardado en el diario');
+}
+
+/* ═══════════════════════ BÚSQUEDA DE ALIMENTOS ═════════════════════════ */
+
+let modoBusqueda = 'diario';   // 'diario' | 'revision'
+
+function todosLosAlimentos(){
+  const propios = ESTADO.propios.map((p,i)=>({
+    id:'p'+i, nombre:p.nombre, categoria:'Mis alimentos',
+    por100:p.por100, medidas:p.medidas || [], origen:'propio',
+  }));
+  return propios.concat(ALIMENTOS);
+}
+
+function buscarAlimentos(texto){
+  const t = normalizar(texto).trim();
+  const todos = todosLosAlimentos();
+  if(!t) return todos.slice(0, 30);
+  const empiezan = [], contienen = [];
+  todos.forEach(a=>{
+    const n = normalizar(a.nombre);
+    if(n.startsWith(t)) empiezan.push(a);
+    else if(n.includes(t) || normalizar(a.categoria).includes(t)) contienen.push(a);
+  });
+  return empiezan.concat(contienen).slice(0, 60);
+}
+
+function pintarBusqueda(){
+  const texto = document.getElementById('campo-buscar').value;
+  const caja = document.getElementById('resultados-busqueda');
+  const encontrados = buscarAlimentos(texto);
+  caja.innerHTML = '';
+
+  if(encontrados.length === 0){
+    caja.innerHTML = '<div class="vacio">No hay nada con ese nombre.<br>' +
+      'Puedes crearlo con “Crear alimento propio”.</div>';
+    return;
+  }
+
+  encontrados.forEach(a=>{
+    const b = document.createElement('button');
+    b.className = 'resultado-alimento';
+    b.innerHTML =
+      '<div class="cuerpo"><div class="n">' + esc(a.nombre) + '</div>' +
+      '<div class="d">' + esc(a.categoria) + (a.origen === 'propio' ? ' · propio' : '') + '</div></div>' +
+      '<div class="k">' + red(a.por100.kcal) + ' kcal<br><span class="mini">por 100 g</span></div>';
+    b.onclick = () => abrirPorcion(a);
+    caja.appendChild(b);
+  });
+}
+
+/* ═════════════════ ELEGIR LA PORCIÓN DE UN ALIMENTO ════════════════════ */
+
+let porcionActual = null;
+
+function abrirPorcion(alimentoBase){
+  const medidas = alimentoBase.medidas || [];
+  porcionActual = crearAlimento({
+    nombre: alimentoBase.nombre,
+    por100: alimentoBase.por100,
+    medidas,
+    unidad: medidas.length ? medidas[0][0] : 'g',
+    cantidad: medidas.length ? 1 : 100,
+    gramos: medidas.length ? medidas[0][1] : 100,
+  });
+  abrirCapa('capa-porcion');
+  document.getElementById('por-titulo').textContent = alimentoBase.nombre;
+  // La misma capa sirve para crear un alimento propio, y aquella deja su propio
+  // manejador puesto: hay que devolver el de siempre antes de pintar.
+  document.getElementById('por-guardar').onclick = guardarPorcionNormal;
+  pintarPorcion();
+}
+
+function pintarPorcion(){
+  const a = porcionActual;
+  const unidades = ['g'].concat((a.medidas||[]).map(m => m[0]));
+  const x = aportaDe(a);
+  const contenido = document.getElementById('por-contenido');
+
+  contenido.innerHTML =
+    '<div class="tarjeta">' +
+      '<div class="cantidad" style="display:flex; gap:8px">' +
+        '<input type="number" id="por-cantidad" inputmode="decimal" step="any" min="0" ' +
+          'style="width:110px; text-align:right" value="' + red(a.cantidad,1) + '">' +
+        '<select id="por-unidad" style="flex:1">' + unidades.map(u =>
+          '<option value="' + esc(u) + '"' + (u === a.unidad ? ' selected' : '') + '>' +
+          (u === 'g' ? 'gramos' : esc(u)) + '</option>').join('') + '</select>' +
+      '</div>' +
+      '<div class="pequeno apagado" id="por-equivalencia" style="margin-top:8px"></div>' +
+      '<div class="resultado" id="por-resultado" style="display:flex; gap:14px; margin-top:12px; flex-wrap:wrap">' +
+        '<span><b style="font-size:19px">' + red(x.kcal) + '</b> kcal</span>' +
+        '<span class="apagado">P <b>' + red(x.prot) + '</b> g</span>' +
+        '<span class="apagado">C <b>' + red(x.carb) + '</b> g</span>' +
+        '<span class="apagado">G <b>' + red(x.gras) + '</b> g</span>' +
+      '</div>' +
+    '</div>' +
+    (modoBusqueda === 'revision' ? '' :
+      '<div class="tarjeta"><span class="pequeno apagado" style="display:block; margin-bottom:8px; font-weight:600">¿En qué comida?</span>' +
+      '<div class="opciones" id="por-comidas">' + COMIDAS.map(c =>
+        '<button data-comida="' + c.id + '" aria-pressed="' + (c.id === (comidaElegida || comidaSegunHora())) + '">' +
+        esc(c.nombre) + '</button>').join('') + '</div></div>');
+
+  const campo = document.getElementById('por-cantidad');
+  const unidad = document.getElementById('por-unidad');
+
+  function recalcular(){
+    a.cantidad = Math.max(0, Number(campo.value) || 0);
+    a.unidad = unidad.value;
+    a.gramos = a.cantidad * gramosPorMedida(a, a.unidad);
+    const y = aportaDe(a);
+    document.getElementById('por-resultado').innerHTML =
+      '<span><b style="font-size:19px">' + red(y.kcal) + '</b> kcal</span>' +
+      '<span class="apagado">P <b>' + red(y.prot) + '</b> g</span>' +
+      '<span class="apagado">C <b>' + red(y.carb) + '</b> g</span>' +
+      '<span class="apagado">G <b>' + red(y.gras) + '</b> g</span>';
+    document.getElementById('por-equivalencia').textContent =
+      a.unidad === 'g' ? '' : 'Equivale a ' + red(a.gramos) + ' g';
+  }
+  campo.oninput = recalcular;
+  unidad.onchange = ()=>{
+    campo.value = red(a.gramos / gramosPorMedida(a, unidad.value), 1);
+    recalcular();
+  };
+  recalcular();
+
+  const comidas = document.getElementById('por-comidas');
+  if(comidas) comidas.querySelectorAll('[data-comida]').forEach(b=>{
+    b.onclick = ()=>{
+      comidaElegida = b.dataset.comida;
+      comidas.querySelectorAll('[data-comida]').forEach(o => o.setAttribute('aria-pressed', o === b));
+    };
+  });
+
+  document.getElementById('por-guardar').textContent =
+    modoBusqueda === 'revision' ? 'Agregar a la comida' : 'Agregar al diario';
+}
+
+document.getElementById('por-guardar').onclick = ()=>{
+  const a = porcionActual;
+  if(!a || a.gramos <= 0){ avisar('Escribe una cantidad.'); return; }
+
+  if(modoBusqueda === 'revision' && revision){
+    revision.alimentos.push(a);
+    cerrarCapa('capa-porcion');
+    modoBusqueda = 'diario';
+    irA('inicio');
+    abrirCapa('capa-revision');
+    pintarRevision();
+    return;
+  }
+
+  const registro = {
+    id:id(), hora:horaAhora(), foto:false,
+    comida: comidaElegida || comidaSegunHora(),
+    alimentos:[a], notas:'', titulo:a.nombre, totales: totalesDe([a]),
+  };
+  guardarRegistro(fechaActual, registro);
+  cerrarCapa('capa-porcion');
+  irA('inicio');
+  pintarInicio();
+  avisar('Agregado al diario');
+};
+
+/* ── Crear un alimento propio ─────────────────────────────────────────── */
+
+document.getElementById('btn-crear-alimento').onclick = ()=>{
+  abrirCapa('capa-porcion');
+  document.getElementById('por-titulo').textContent = 'Nuevo alimento';
+  document.getElementById('por-contenido').innerHTML =
+    '<div class="tarjeta">' +
+      '<div class="pequeno apagado" style="margin-bottom:12px">Escribe la información nutricional ' +
+        'que aparece en la etiqueta, siempre <b>por cada 100 g</b> (o 100 ml si es líquido).</div>' +
+      '<label class="campo"><span>Nombre</span><input type="text" id="nuevo-nombre" placeholder="Ej: Yogur de la marca X"></label>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">' +
+        '<label class="campo"><span>Calorías (kcal)</span><input type="number" id="nuevo-kcal" inputmode="decimal"></label>' +
+        '<label class="campo"><span>Proteína (g)</span><input type="number" id="nuevo-prot" inputmode="decimal"></label>' +
+        '<label class="campo"><span>Carbohidratos (g)</span><input type="number" id="nuevo-carb" inputmode="decimal"></label>' +
+        '<label class="campo"><span>Grasas (g)</span><input type="number" id="nuevo-gras" inputmode="decimal"></label>' +
+      '</div>' +
+      '<label class="campo" style="margin-bottom:0"><span>Peso de una porción en gramos (opcional)</span>' +
+        '<input type="number" id="nuevo-porcion" inputmode="decimal" placeholder="Ej: 200 para un vaso"></label>' +
+    '</div>';
+  const guardarBoton = document.getElementById('por-guardar');
+  guardarBoton.textContent = 'Guardar alimento';
+  guardarBoton.onclick = ()=>{
+    const nombre = document.getElementById('nuevo-nombre').value.trim();
+    if(!nombre){ avisar('Ponle un nombre.'); return; }
+    const porcion = Number(document.getElementById('nuevo-porcion').value) || 0;
+    ESTADO.propios.unshift({
+      nombre,
+      por100:{
+        kcal: Number(document.getElementById('nuevo-kcal').value) || 0,
+        prot: Number(document.getElementById('nuevo-prot').value) || 0,
+        carb: Number(document.getElementById('nuevo-carb').value) || 0,
+        gras: Number(document.getElementById('nuevo-gras').value) || 0,
+      },
+      medidas: porcion > 0 ? [['porción', porcion]] : [],
+    });
+    guardar();
+    cerrarCapa('capa-porcion');
+    guardarBoton.onclick = guardarPorcionNormal;
+    document.getElementById('campo-buscar').value = nombre;
+    pintarBusqueda();
+    avisar('Alimento guardado');
+  };
+};
+const guardarPorcionNormal = document.getElementById('por-guardar').onclick;
+
+/* ═══════════════════════════ PROGRESO ══════════════════════════════════ */
+
+function pintarProgreso(){
+  // Calorías de los últimos 7 días.
+  const dias = [];
+  for(let i = 6; i >= 0; i--){
+    const f = sumarDias(hoy(), -i);
+    dias.push({fecha:f, kcal: totalesDelDia(f).kcal});
+  }
+  const meta = metaVigente().kcal;
+  barras(document.getElementById('grafica-kcal'), dias.map(d=>({
+    etiqueta: ['D','L','M','X','J','V','S'][desdeFecha(d.fecha).getDay()],
+    valor: d.kcal,
+  })), meta);
+
+  const conDatos = dias.filter(d => d.kcal > 0);
+  document.getElementById('promedio-kcal').textContent = conDatos.length
+    ? 'Promedio de los días con registro: ' + red(conDatos.reduce((s,d)=>s+d.kcal,0)/conDatos.length) + ' kcal.'
+    : 'Aún no hay registros esta semana.';
+
+  // Peso.
+  linea(document.getElementById('grafica-peso'), ESTADO.pesos.slice(-30));
+  const lista = document.getElementById('lista-pesos');
+  const pesos = ESTADO.pesos.slice().reverse().slice(0, 8);
+  lista.innerHTML = pesos.length
+    ? pesos.map((p,i)=>
+        '<div class="fila entre pequeno" style="padding:7px 2px; border-bottom:1px solid var(--borde)">' +
+        '<span>' + esc(nombreFecha(p.fecha)) + '</span>' +
+        '<span><b>' + p.valor + ' kg</b> <button class="btn sutil mini" data-peso="' + esc(p.fecha) + '">quitar</button></span></div>'
+      ).join('')
+    : '<div class="vacio">Sin registros de peso todavía.</div>';
+  lista.querySelectorAll('[data-peso]').forEach(b=>{
+    b.onclick = ()=>{
+      ESTADO.pesos = ESTADO.pesos.filter(p => p.fecha !== b.dataset.peso);
+      guardar(); pintarProgreso();
+    };
+  });
+}
+
+document.getElementById('btn-anotar-peso').onclick = ()=>{
+  const existente = ESTADO.pesos.find(p => p.fecha === hoy());
+  const caja = document.getElementById('lista-pesos');
+  caja.insertAdjacentHTML('afterbegin',
+    '<div class="fila" id="form-peso" style="gap:8px; margin-bottom:10px">' +
+      '<input type="number" id="campo-peso" inputmode="decimal" step="0.1" placeholder="kg" ' +
+        'value="' + (existente ? existente.valor : (ESTADO.perfil.peso || '')) + '" style="flex:1">' +
+      '<button class="btn principal" id="peso-ok">Anotar</button>' +
+    '</div>');
+  const campo = document.getElementById('campo-peso');
+  campo.focus();
+  document.getElementById('peso-ok').onclick = ()=>{
+    const valor = Number(campo.value);
+    if(!valor || valor <= 0){ avisar('Escribe un peso válido.'); return; }
+    ESTADO.pesos = ESTADO.pesos.filter(p => p.fecha !== hoy());
+    ESTADO.pesos.push({fecha:hoy(), valor:red(valor,1)});
+    ESTADO.pesos.sort((a,b)=> a.fecha < b.fecha ? -1 : 1);
+    // El peso del perfil se mueve con el último dato: es el que alimenta la meta.
+    ESTADO.perfil.peso = red(valor,1);
+    guardar();
+    pintarProgreso(); pintarPerfil(); pintarInicio();
+    avisar('Peso anotado');
+  };
+};
+
+/** Prepara el lienzo para la densidad de pantalla del teléfono. */
+function lienzo(canvas, alto){
+  const dpr = window.devicePixelRatio || 1;
+  const ancho = canvas.clientWidth || 320;
+  canvas.width = ancho * dpr;
+  canvas.height = alto * dpr;
+  canvas.style.height = alto + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, ancho, alto);
+  return {ctx, ancho, alto};
+}
+
+function color(nombre){
+  return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+}
+
+function barras(canvas, datos, meta){
+  const {ctx, ancho, alto} = lienzo(canvas, 200);
+  const margen = {arriba:14, abajo:26, lado:6};
+  const util = alto - margen.arriba - margen.abajo;
+  const maximo = Math.max(meta || 0, ...datos.map(d=>d.valor), 1) * 1.15;
+  const paso = (ancho - margen.lado*2) / datos.length;
+
+  if(meta > 0){
+    const y = margen.arriba + util - (meta/maximo)*util;
+    ctx.strokeStyle = color('--borde'); ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(margen.lado, y); ctx.lineTo(ancho-margen.lado, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color('--apagado'); ctx.font = '10px system-ui'; ctx.textAlign = 'left';
+    ctx.fillText('meta ' + red(meta), margen.lado + 2, y - 4);
+  }
+
+  datos.forEach((d,i)=>{
+    const anchoBarra = Math.min(paso * 0.55, 34);
+    const x = margen.lado + paso*i + (paso - anchoBarra)/2;
+    const altoBarra = Math.max(2, (d.valor/maximo) * util);
+    const y = margen.arriba + util - altoBarra;
+    ctx.fillStyle = d.valor > (meta||Infinity) ? color('--carb') : color('--acento');
+    if(d.valor === 0) ctx.fillStyle = color('--borde');
+    ctx.beginPath();
+    const r = Math.min(5, anchoBarra/2);
+    ctx.moveTo(x, y+altoBarra); ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.lineTo(x+anchoBarra-r, y);
+    ctx.quadraticCurveTo(x+anchoBarra, y, x+anchoBarra, y+r);
+    ctx.lineTo(x+anchoBarra, y+altoBarra);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = color('--apagado'); ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(d.etiqueta, x + anchoBarra/2, alto - 9);
+    if(d.valor > 0){
+      ctx.fillStyle = color('--texto'); ctx.font = '10px system-ui';
+      ctx.fillText(red(d.valor), x + anchoBarra/2, y - 4);
+    }
+  });
+}
+
+function linea(canvas, datos){
+  const {ctx, ancho, alto} = lienzo(canvas, 180);
+  if(datos.length === 0){
+    ctx.fillStyle = color('--apagado'); ctx.font = '13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('Anota tu peso para ver la evolución', ancho/2, alto/2);
+    return;
+  }
+  if(datos.length === 1){
+    ctx.fillStyle = color('--texto'); ctx.font = '600 22px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(datos[0].valor + ' kg', ancho/2, alto/2);
+    ctx.fillStyle = color('--apagado'); ctx.font = '12px system-ui';
+    ctx.fillText('Con dos o más registros aparece la gráfica', ancho/2, alto/2 + 22);
+    return;
+  }
+  const margen = {arriba:18, abajo:24, izq:34, der:10};
+  const util = alto - margen.arriba - margen.abajo;
+  const anchoUtil = ancho - margen.izq - margen.der;
+  const valores = datos.map(d=>d.valor);
+  let min = Math.min(...valores), max = Math.max(...valores);
+  if(max - min < 1){ min -= 0.5; max += 0.5; }
+  const px = (i) => margen.izq + (anchoUtil * i) / (datos.length - 1);
+  const py = (v) => margen.arriba + util - ((v - min)/(max - min)) * util;
+
+  ctx.strokeStyle = color('--borde'); ctx.lineWidth = 1;
+  [min, (min+max)/2, max].forEach(v=>{
+    ctx.beginPath(); ctx.moveTo(margen.izq, py(v)); ctx.lineTo(ancho - margen.der, py(v)); ctx.stroke();
+    ctx.fillStyle = color('--apagado'); ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(red(v,1), margen.izq - 6, py(v) + 3);
+  });
+
+  ctx.strokeStyle = color('--acento'); ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  datos.forEach((d,i)=> i ? ctx.lineTo(px(i), py(d.valor)) : ctx.moveTo(px(i), py(d.valor)));
+  ctx.stroke();
+  ctx.fillStyle = color('--acento');
+  datos.forEach((d,i)=>{ ctx.beginPath(); ctx.arc(px(i), py(d.valor), 3, 0, 7); ctx.fill(); });
+
+  ctx.fillStyle = color('--apagado'); ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(nombreFecha(datos[0].fecha), px(0) + 10, alto - 7);
+  ctx.fillText(nombreFecha(datos[datos.length-1].fecha), px(datos.length-1) - 10, alto - 7);
+}
+
+/* ════════════════════════════ PERFIL ═══════════════════════════════════ */
+
+function pintarPerfil(){
+  const p = ESTADO.perfil;
+  document.getElementById('p-edad').value = p.edad ?? '';
+  document.getElementById('p-sexo').value = p.sexo;
+  document.getElementById('p-peso').value = p.peso ?? '';
+  document.getElementById('p-estatura').value = p.estatura ?? '';
+  document.getElementById('p-actividad').value = String(p.actividad);
+  document.getElementById('p-objetivo').value = p.objetivo;
+  document.getElementById('p-backend').value = ESTADO.ajustes.servidor;
+
+  const meta = metaVigente();
+  document.getElementById('p-meta-kcal').value = red(meta.kcal);
+  document.getElementById('p-meta-prot').value = red(meta.prot);
+  document.getElementById('p-meta-carb').value = red(meta.carb);
+  document.getElementById('p-meta-gras').value = red(meta.gras);
+
+  const manual = ESTADO.meta.manual;
+  document.getElementById('btn-meta-modo').textContent = manual ? 'Volver a calcularla' : 'Editar a mano';
+  document.getElementById('explica-meta').textContent = manual
+    ? 'Estás usando una meta escrita por ti. La app no la recalcula aunque cambien tus datos.'
+    : (calcularMeta(p)
+        ? 'Calculada con tus datos (fórmula de Mifflin-St Jeor) y ajustada a tu objetivo. Es un punto de partida: si en la práctica no te cuadra, edítala a mano.'
+        : 'Completa tus datos arriba para calcular la meta.');
+  document.querySelectorAll('#campos-meta input').forEach(i => i.disabled = !manual);
+
+  document.querySelectorAll('#opciones-tema button').forEach(b=>{
+    b.setAttribute('aria-pressed', b.dataset.tema === ESTADO.ajustes.tema);
+  });
+}
+
+function leerPerfil(){
+  const p = ESTADO.perfil;
+  p.edad = Number(document.getElementById('p-edad').value) || null;
+  p.sexo = document.getElementById('p-sexo').value;
+  p.peso = Number(document.getElementById('p-peso').value) || null;
+  p.estatura = Number(document.getElementById('p-estatura').value) || null;
+  p.actividad = Number(document.getElementById('p-actividad').value);
+  p.objetivo = document.getElementById('p-objetivo').value;
+  guardar();
+  pintarPerfil();
+  pintarInicio();
+}
+
+['p-edad','p-sexo','p-peso','p-estatura','p-actividad','p-objetivo'].forEach(idCampo=>{
+  document.getElementById(idCampo).onchange = leerPerfil;
+});
+
+document.getElementById('btn-meta-modo').onclick = ()=>{
+  if(ESTADO.meta.manual){
+    ESTADO.meta.manual = false;
+  }else{
+    // Al pasar a manual se parte de la meta calculada, no de cero.
+    const actual = metaVigente();
+    ESTADO.meta = {manual:true, kcal:actual.kcal, prot:actual.prot, carb:actual.carb, gras:actual.gras};
+  }
+  guardar(); pintarPerfil(); pintarInicio();
+};
+
+['kcal','prot','carb','gras'].forEach(clave=>{
+  document.getElementById('p-meta-'+clave).onchange = (e)=>{
+    if(!ESTADO.meta.manual) return;
+    ESTADO.meta[clave] = Number(e.target.value) || 0;
+    guardar(); pintarInicio();
+  };
+});
+
+document.getElementById('p-backend').onchange = (e)=>{
+  ESTADO.ajustes.servidor = e.target.value.trim().replace(/\/+$/,'') || SERVIDOR_POR_DEFECTO;
+  guardar();
+  document.getElementById('p-backend').value = ESTADO.ajustes.servidor;
+};
+
+function servidor(){ return ESTADO.ajustes.servidor || SERVIDOR_POR_DEFECTO; }
+
+document.getElementById('btn-probar-servidor').onclick = async ()=>{
+  const estado = document.getElementById('estado-servidor');
+  estado.textContent = 'Probando…';
+  try{
+    const r = await fetch(servidor() + '/health', {cache:'no-store'});
+    const j = await r.json();
+    const mio = j.apps && j.apps.nutrifoto;
+    estado.textContent = mio
+      ? (mio.modelos_disponibles > 0
+          ? 'Funcionando (' + mio.modelos_disponibles + ' de ' + mio.modelos_totales + ' modelos con cuota).'
+          : 'Conectado, pero hoy se agotó la cuota de análisis.')
+      : 'Responde, pero este servidor no tiene el análisis de comida instalado.';
+  }catch(e){
+    estado.textContent = 'No responde. Revisa la dirección o tu conexión.';
+  }
+};
+
+/* ── Copia de seguridad ───────────────────────────────────────────────── */
+
+document.getElementById('btn-exportar').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(ESTADO, null, 2)], {type:'application/json'});
+  const enlace = document.createElement('a');
+  enlace.href = URL.createObjectURL(blob);
+  enlace.download = 'nutrifoto-' + hoy() + '.json';
+  enlace.click();
+  setTimeout(()=>URL.revokeObjectURL(enlace.href), 4000);
+  avisar('Copia descargada (sin las fotos)');
+};
+
+document.getElementById('btn-importar').onclick = () => document.getElementById('archivo-importar').click();
+document.getElementById('archivo-importar').onchange = (e)=>{
+  const archivo = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!archivo) return;
+  const lector = new FileReader();
+  lector.onload = ()=>{
+    try{
+      const datos = JSON.parse(lector.result);
+      if(!datos || typeof datos !== 'object') throw new Error('formato');
+      if(!confirm('Esto reemplaza todo lo que tienes registrado ahora. ¿Continuar?')) return;
+      ESTADO = estructurar(datos);
+      guardar();
+      aplicarTema(); pintarTodo();
+      avisar('Copia restaurada');
+    }catch(err){
+      avisar('Ese archivo no es una copia válida.');
+    }
+  };
+  lector.readAsText(archivo);
+};
+
+document.getElementById('btn-borrar-todo').onclick = ()=>{
+  if(!confirm('Se borra todo: diario, peso, alimentos propios y perfil. Esto no se puede deshacer.')) return;
+  if(!confirm('Confirma otra vez: ¿borrar todo?')) return;
+  localStorage.removeItem(CLAVE);
+  FotosDB.vaciar();
+  ESTADO = estructurar({});
+  guardar();
+  aplicarTema(); pintarTodo();
+  avisar('Todo borrado');
+};
+
+/* ═════════════════════════════ TEMA ════════════════════════════════════ */
+
+function aplicarTema(){
+  const tema = ESTADO.ajustes.tema;
+  if(tema === 'auto') document.documentElement.removeAttribute('data-tema');
+  else document.documentElement.setAttribute('data-tema', tema);
+  const oscuro = tema === 'oscuro' ||
+    (tema === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
+  const meta = document.createElement('meta');
+  meta.name = 'theme-color';
+  meta.content = oscuro ? '#131311' : '#faf7f2';
+  document.head.appendChild(meta);
+}
+
+document.getElementById('btn-tema').onclick = ()=>{
+  const orden = ['auto','claro','oscuro'];
+  const siguiente = orden[(orden.indexOf(ESTADO.ajustes.tema) + 1) % 3];
+  ESTADO.ajustes.tema = siguiente;
+  guardar(); aplicarTema(); pintarPerfil();
+  if(vistaActual === 'progreso') pintarProgreso();
+  avisar('Tema: ' + (siguiente === 'auto' ? 'según el sistema' : siguiente));
+};
+
+document.querySelectorAll('#opciones-tema button').forEach(b=>{
+  b.onclick = ()=>{
+    ESTADO.ajustes.tema = b.dataset.tema;
+    guardar(); aplicarTema(); pintarPerfil();
+  };
+});
+
+/* ═══════════════════ NAVEGACIÓN ENTRE VISTAS Y CAPAS ═══════════════════ */
+
+let vistaActual = 'inicio';
+
+function irA(vista){
+  vistaActual = vista;
+  ['inicio','buscar','progreso','perfil'].forEach(v=>{
+    document.getElementById('vista-'+v).classList.toggle('oculto', v !== vista);
+  });
+  document.querySelectorAll('nav.inferior [data-vista]').forEach(b=>{
+    b.classList.toggle('activo', b.dataset.vista === vista);
+  });
+  window.scrollTo(0,0);
+  if(vista === 'progreso') pintarProgreso();
+  if(vista === 'perfil') pintarPerfil();
+  if(vista === 'buscar') pintarBusqueda();
+  if(vista === 'inicio') pintarInicio();
+}
+
+document.querySelectorAll('nav.inferior [data-vista]').forEach(b=>{
+  b.onclick = ()=>{
+    if(b.dataset.vista !== 'buscar') modoBusqueda = 'diario';
+    irA(b.dataset.vista);
+  };
+});
+
+function abrirCapa(idCapa){
+  document.getElementById(idCapa).classList.remove('oculto');
+  document.body.style.overflow = 'hidden';
+}
+function cerrarCapa(idCapa){
+  document.getElementById(idCapa).classList.add('oculto');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('rev-cerrar').onclick = ()=>{
+  if(revision && revision.alimentos.length && !confirm('¿Salir sin guardar esta comida?')) return;
+  cerrarCapa('capa-revision');
+  revision = null;
+};
+document.getElementById('por-cerrar').onclick = ()=>{
+  cerrarCapa('capa-porcion');
+  document.getElementById('por-guardar').onclick = guardarPorcionNormal;
+  if(modoBusqueda === 'revision' && revision){
+    abrirCapa('capa-revision');
+    pintarRevision();
+  }
+};
+
+/* El botón físico de "atrás" de Android cierra la capa abierta antes de salir. */
+history.replaceState({capa:null}, '');
+window.addEventListener('popstate', ()=>{
+  const abierta = document.querySelector('.capa:not(.oculto)');
+  if(abierta){
+    cerrarCapa(abierta.id);
+    history.pushState({capa:null}, '');
+  }
+});
+['capa-revision','capa-porcion'].forEach(idCapa=>{
+  new MutationObserver(()=>{
+    if(!document.getElementById(idCapa).classList.contains('oculto')) history.pushState({capa:idCapa}, '');
+  }).observe(document.getElementById(idCapa), {attributes:true, attributeFilter:['class']});
+});
+
+/* ── Fechas ───────────────────────────────────────────────────────────── */
+
+document.getElementById('dia-antes').onclick = ()=>{ fechaActual = sumarDias(fechaActual,-1); pintarInicio(); };
+document.getElementById('dia-despues').onclick = ()=>{ fechaActual = sumarDias(fechaActual, 1); pintarInicio(); };
+document.getElementById('selector-fecha').onchange = (e)=>{
+  if(e.target.value){ fechaActual = e.target.value; pintarInicio(); }
+};
+
+document.getElementById('campo-buscar').oninput = pintarBusqueda;
+
+/* ═════════════════════════ PRIMER ARRANQUE ═════════════════════════════ */
+
+function mostrarBienvenida(){
+  document.getElementById('bienvenida-contenido').innerHTML =
+    '<div style="padding:26px 4px 10px; text-align:center">' +
+      '<div style="font-size:46px">🍽️</div>' +
+      '<h1 style="font-size:24px; margin:10px 0 6px">Nutri<span style="color:var(--acento)">Foto</span></h1>' +
+      '<div class="apagado" style="font-size:14.5px">Toma una foto de tu plato y la app estima los ' +
+      'alimentos, las porciones y las calorías. Tú ajustas lo que no cuadre.</div>' +
+    '</div>' +
+    '<div class="tarjeta">' +
+      '<h2>Para calcular tu meta diaria</h2>' +
+      '<div class="pequeno apagado" style="margin-bottom:12px">Puedes saltarte esto y llenarlo después ' +
+        'en Perfil. Sin estos datos la app usa una meta general de 2.000 kcal.</div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">' +
+        '<label class="campo"><span>Edad</span><input type="number" id="b-edad" inputmode="numeric"></label>' +
+        '<label class="campo"><span>Sexo</span><select id="b-sexo"><option value="m">Masculino</option><option value="f">Femenino</option></select></label>' +
+        '<label class="campo"><span>Peso (kg)</span><input type="number" id="b-peso" inputmode="decimal" step="0.1"></label>' +
+        '<label class="campo"><span>Estatura (cm)</span><input type="number" id="b-estatura" inputmode="numeric"></label>' +
+      '</div>' +
+      '<label class="campo"><span>Nivel de actividad</span><select id="b-actividad">' +
+        '<option value="1.2">Sedentario</option><option value="1.375">Ligero</option>' +
+        '<option value="1.55" selected>Moderado</option><option value="1.725">Alto</option>' +
+        '<option value="1.9">Muy alto</option></select></label>' +
+      '<label class="campo" style="margin-bottom:0"><span>Objetivo</span><select id="b-objetivo">' +
+        '<option value="bajar">Bajar de peso</option><option value="mantener" selected>Mantener</option>' +
+        '<option value="subir">Subir de peso</option></select></label>' +
+    '</div>' +
+    '<div class="aviso">Las calorías estimadas desde una foto son una <b>referencia</b>, no una medición ' +
+      'exacta. NutriFoto no da diagnósticos ni recomendaciones clínicas.</div>';
+  abrirCapa('capa-bienvenida');
+}
+
+document.getElementById('bienvenida-listo').onclick = ()=>{
+  const num = (idCampo)=> Number(document.getElementById(idCampo).value) || null;
+  ESTADO.perfil = {
+    edad: num('b-edad'), sexo: document.getElementById('b-sexo').value,
+    peso: num('b-peso'), estatura: num('b-estatura'),
+    actividad: Number(document.getElementById('b-actividad').value),
+    objetivo: document.getElementById('b-objetivo').value,
+  };
+  if(ESTADO.perfil.peso) ESTADO.pesos.push({fecha:hoy(), valor:ESTADO.perfil.peso});
+  ESTADO.ajustes.bienvenida = true;
+  guardar();
+  cerrarCapa('capa-bienvenida');
+  pintarTodo();
+};
+
+/* ═══════════════════════════ ARRANQUE ══════════════════════════════════ */
+
+function pintarTodo(){
+  pintarInicio();
+  pintarPerfil();
+  if(vistaActual === 'progreso') pintarProgreso();
+  if(vistaActual === 'buscar') pintarBusqueda();
+}
+
+aplicarTema();
+pintarTodo();
+if(!ESTADO.ajustes.bienvenida) mostrarBienvenida();
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+  aplicarTema();
+  if(vistaActual === 'progreso') pintarProgreso();
+});
+
+/* Si la app queda abierta y cambia el día, el diario debe seguir al calendario. */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && fechaActual !== hoy()){
+    const eraHoy = !document.querySelector('.capa:not(.oculto)');
+    if(eraHoy && nombreFecha(fechaActual) === 'Ayer'){ fechaActual = hoy(); pintarInicio(); }
+  }
+});
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* sin conexión no pasa nada */ });
+  });
+}
+</script>
+</body>
+</html>

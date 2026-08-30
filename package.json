@@ -1,0 +1,17 @@
+{
+  "name": "nutrifoto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Registro de comidas con estimacion de calorias por fotografia.",
+  "scripts": {
+    "local": "node servidor-local.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

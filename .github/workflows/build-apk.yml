@@ -1,0 +1,63 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Sellar la versión del service worker
+        run: sed -i "s/__VERSION__/${GITHUB_SHA::7}/" www/sw.js
+
+      - name: Sincronizar Capacitor con Android
+        run: npx cap sync android
+
+      - name: Dar permisos de ejecución a Gradle
+        run: chmod +x android/gradlew
+
+      - name: Compilar APK (debug, instalable directamente)
+        run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: Ponerle nombre propio al archivo
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk nutrifoto.apk
+
+      - name: Subir el APK como resultado descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: nutrifoto-apk
+          path: nutrifoto.apk
+
+      # Deja el APK en un enlace fijo y sin necesidad de iniciar sesión, para
+      # poder descargarlo directo desde el celular.
+      - name: Publicar el APK como descarga directa
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ultimo
+          name: NutriFoto · última versión
+          body: |
+            APK de la última versión de NutriFoto, compilado automáticamente.
+            Descarga `nutrifoto.apk` aquí abajo e instálalo en tu Android.
+          files: nutrifoto.apk
