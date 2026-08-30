@@ -268,6 +268,35 @@ textarea{resize:vertical; min-height:64px}
 /* ── Gráficas ─────────────────────────────────────────────────────────── */
 canvas{width:100%; height:auto; display:block}
 
+/* ── Hoja inferior: elegir cámara o galería ───────────────────────────── */
+.hoja-fondo{
+  position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.42);
+  display:flex; align-items:flex-end; animation:aparece .18s ease;
+}
+@keyframes aparece{from{opacity:0}}
+.hoja{
+  width:100%; max-width:640px; margin:0 auto; background:var(--fondo);
+  border-radius:22px 22px 0 0; padding:10px 16px calc(18px + env(safe-area-inset-bottom));
+  animation:asoma .24s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes asoma{from{transform:translateY(100%)}}
+.hoja .agarre{
+  width:38px; height:4px; border-radius:99px; background:var(--borde);
+  margin:0 auto 14px;
+}
+.acciones-origen{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.tarjeta-accion{
+  display:grid; gap:2px; text-align:left; padding:14px;
+  border:1px solid var(--borde); border-radius:var(--r); background:var(--superficie);
+}
+.tarjeta-accion .ico{font-size:24px; line-height:1.2}
+.tarjeta-accion b{font-size:15px}
+.tarjeta-accion .apoyo{font-size:12px; color:var(--apagado)}
+.tarjeta-accion.destacada{
+  background:var(--acento-suave); border-color:color-mix(in srgb, var(--acento) 35%, transparent);
+}
+.tarjeta-accion.destacada b{color:var(--acento)}
+
 /* ── Mensajes flotantes ───────────────────────────────────────────────── */
 #aviso-flotante{
   position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom));
@@ -463,7 +492,35 @@ canvas{width:100%; height:auto; display:block}
   <button data-vista="perfil"><span class="ico">👤</span>Perfil</button>
 </nav>
 
-<input type="file" id="entrada-foto" accept="image/*" capture="environment" class="oculto">
+<!-- Dos entradas separadas a propósito: el atributo `capture` es lo que hace que
+     Android abra la cámara directamente, y no hay forma de encenderlo y apagarlo de
+     forma fiable en el mismo input dentro del WebView. Con dos, cada botón hace una
+     sola cosa y siempre la misma. -->
+<input type="file" id="entrada-camara" accept="image/*" capture="environment" class="oculto">
+<input type="file" id="entrada-galeria" accept="image/*" class="oculto">
+
+<!-- ──────────────────── HOJA: ¿cámara o galería? ───────────────────────── -->
+<div class="hoja-fondo oculto" id="hoja-origen">
+  <div class="hoja">
+    <div class="agarre"></div>
+    <h2 style="margin-bottom:4px">Registrar una comida</h2>
+    <div class="pequeno apagado" style="margin-bottom:14px">Del plato completo y con buena luz: así se estiman mejor las porciones.</div>
+    <div class="acciones-origen">
+      <button class="tarjeta-accion destacada" id="origen-camara">
+        <span class="ico">📷</span>
+        <b>Tomar foto</b>
+        <span class="apoyo">Captura al instante</span>
+      </button>
+      <button class="tarjeta-accion" id="origen-galeria">
+        <span class="ico">🖼️</span>
+        <b>De la galería</b>
+        <span class="apoyo">Elige una imagen</span>
+      </button>
+    </div>
+    <button class="btn ancho" id="origen-manual" style="margin-top:10px">Buscar el alimento a mano</button>
+    <button class="btn sutil ancho" id="origen-cerrar" style="margin-top:2px">Cancelar</button>
+  </div>
+</div>
 
 <!-- ─────────────────────────── CAPA: REVISIÓN ──────────────────────────── -->
 <div class="capa oculto" id="capa-revision">
@@ -1121,12 +1178,38 @@ function comidaSegunHora(){
 
 let comidaElegida = null;
 
-document.getElementById('btn-camara').onclick = ()=>{
+/** Abre la hoja que deja elegir entre la cámara y la galería. */
+function pedirFoto(){
   comidaElegida = comidaSegunHora();
-  document.getElementById('entrada-foto').click();
+  document.getElementById('hoja-origen').classList.remove('oculto');
+  document.body.style.overflow = 'hidden';
+}
+function cerrarHoja(){
+  document.getElementById('hoja-origen').classList.add('oculto');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('btn-camara').onclick = pedirFoto;
+document.getElementById('origen-cerrar').onclick = cerrarHoja;
+document.getElementById('hoja-origen').onclick = (e)=>{
+  if(e.target.id === 'hoja-origen') cerrarHoja();   // tocar fuera cierra
+};
+document.getElementById('origen-camara').onclick = ()=>{
+  cerrarHoja();
+  document.getElementById('entrada-camara').click();
+};
+document.getElementById('origen-galeria').onclick = ()=>{
+  cerrarHoja();
+  document.getElementById('entrada-galeria').click();
+};
+document.getElementById('origen-manual').onclick = ()=>{
+  cerrarHoja();
+  irA('buscar');
+  document.getElementById('campo-buscar').focus();
 };
 
-document.getElementById('entrada-foto').onchange = async (e)=>{
+/** Mismo tratamiento venga de donde venga la imagen. */
+async function recibirImagen(e){
   const archivo = e.target.files && e.target.files[0];
   e.target.value = '';
   if(!archivo) return;
@@ -1138,7 +1221,9 @@ document.getElementById('entrada-foto').onchange = async (e)=>{
     console.error(err);
     avisar('No se pudo leer la imagen.');
   }
-};
+}
+document.getElementById('entrada-camara').onchange = recibirImagen;
+document.getElementById('entrada-galeria').onchange = recibirImagen;
 
 /** Reduce la foto antes de enviarla: menos datos, menos espera y menos batería. */
 function reducirImagen(archivo, ladoMaximo, calidad){
@@ -1268,11 +1353,11 @@ function errorDeAnalisis(titulo, detalle){
     '</div>';
   document.getElementById('rev-pie').style.flexDirection = '';
   document.getElementById('rev-pie').innerHTML =
-    '<button class="btn" id="err-reintentar">Tomar otra foto</button>' +
+    '<button class="btn" id="err-reintentar">Otra imagen</button>' +
     '<button class="btn principal" style="flex:1" id="err-manual">Registrar a mano</button>';
   document.getElementById('err-reintentar').onclick = ()=>{
     cerrarCapa('capa-revision');
-    document.getElementById('entrada-foto').click();
+    pedirFoto();
   };
   document.getElementById('err-manual').onclick = ()=>{
     cerrarCapa('capa-revision');
@@ -2073,6 +2158,12 @@ document.getElementById('por-cerrar').onclick = ()=>{
 /* El botón físico de "atrás" de Android cierra la capa abierta antes de salir. */
 history.replaceState({capa:null}, '');
 window.addEventListener('popstate', ()=>{
+  const hoja = document.getElementById('hoja-origen');
+  if(!hoja.classList.contains('oculto')){
+    cerrarHoja();
+    history.pushState({capa:null}, '');
+    return;
+  }
   const abierta = document.querySelector('.capa:not(.oculto)');
   if(abierta){
     cerrarCapa(abierta.id);
