@@ -38,8 +38,46 @@ jobs:
       - name: Dar permisos de ejecución a Gradle
         run: chmod +x android/gradlew
 
+      # Sin una clave estable, cada compilación firma con una distinta y Android no deja
+      # instalar la nueva versión encima de la anterior. El secreto tiene prioridad sobre
+      # la clave del repositorio; si no hay ninguna, se compila igual pero habrá que
+      # desinstalar para actualizar.
+      - name: Preparar la clave de firma
+        env:
+          CLAVE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$CLAVE_B64" ]; then
+            mkdir -p keystore
+            printf '%s' "$CLAVE_B64" | base64 -d > keystore/nutrifoto.p12
+            echo "Firmando con la clave del secreto KEYSTORE_B64."
+          elif [ -f keystore/nutrifoto.p12 ]; then
+            echo "Firmando con la clave versionada en el repositorio."
+          else
+            echo "AVISO: sin clave estable. Habrá que desinstalar para actualizar."
+          fi
+
       - name: Compilar APK (debug, instalable directamente)
+        env:
+          # Sube con cada compilación: Android exige que el número no baje para aceptar
+          # una actualización.
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.${{ github.run_number }}
         run: cd android && ./gradlew assembleDebug --no-daemon
+
+      # La huella permite comprobar que todas las compilaciones firman con la MISMA clave.
+      # Si cambia entre una versión y otra, Android rechazará la actualización.
+      - name: Mostrar la huella de firma
+        run: |
+          FIRMADOR=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -z "$FIRMADOR" ]; then
+            echo "No se encontró apksigner; se omite la comprobación."
+            exit 0
+          fi
+          HUELLA=$("$FIRMADOR" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk \
+                   | grep -i "SHA-256 digest" | head -1 | awk '{print $NF}')
+          echo "### Firma del APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA-256: \`$HUELLA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "versionCode: \`${{ github.run_number }}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ponerle nombre propio al archivo
         run: cp android/app/build/outputs/apk/debug/app-debug.apk nutrifoto.apk

@@ -1,14 +1,38 @@
 apply plugin: 'com.android.application'
 
+// Clave de firma estable. Sin ella, cada compilacion firma con una clave distinta que
+// Gradle inventa sobre la marcha, Android lo lee como OTRA app y obliga a desinstalar la
+// anterior para poder instalar la nueva. Con una clave fija, el APK nuevo se instala
+// encima como una actualizacion normal y los datos del usuario se quedan donde estan.
+def claveFirma = rootProject.file('../keystore/nutrifoto.p12')
+
+// El numero de version sube con cada compilacion en la nube (VERSION_CODE lo pone el
+// workflow). En local se queda en 1, que basta para probar.
+def codigoVersion = (System.getenv('VERSION_CODE') ?: '1') as Integer
+def nombreVersion = System.getenv('VERSION_NAME') ?: '1.0'
+
 android {
     namespace = "com.nutrifoto.app"
     compileSdk = rootProject.ext.compileSdkVersion
+
+    signingConfigs {
+        if (claveFirma.exists()) {
+            debug {
+                storeFile claveFirma
+                storeType 'PKCS12'
+                storePassword 'nutrifoto'
+                keyAlias 'nutrifoto'
+                keyPassword 'nutrifoto'
+            }
+        }
+    }
+
     defaultConfig {
         applicationId "com.nutrifoto.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode codigoVersion
+        versionName nombreVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
