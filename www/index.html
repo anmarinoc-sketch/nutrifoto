@@ -413,10 +413,7 @@ canvas{width:100%; height:auto; display:block}
       <div class="pequeno apagado" id="restante" style="margin-top:12px"></div>
     </div>
 
-    <div class="fila" style="gap:8px; margin:14px 0 4px">
-      <button class="btn principal" style="flex:1" id="btn-que-como">¿Qué puedo comer?</button>
-      <button class="btn oculto" id="btn-mi-plan">Mi plan</button>
-    </div>
+    <button class="btn principal ancho" id="btn-que-como" style="margin:14px 0 4px">¿Qué puedo comer?</button>
     <h2 style="font-size:14.5px; margin:18px 2px 10px" id="titulo-comidas">Comidas de hoy</h2>
     <div id="lista-comidas"></div>
   </section>
@@ -464,7 +461,7 @@ canvas{width:100%; height:auto; display:block}
         </select>
       </label>
       <label class="campo"><span>Peso actual (kg)</span><input type="number" id="p-peso" inputmode="decimal" step="0.1"></label>
-      <label class="campo"><span>Estatura (cm)</span><input type="number" id="p-estatura" inputmode="numeric"></label>
+      <label class="campo"><span>Estatura en centímetros, sin punto</span><input type="number" id="p-estatura" inputmode="numeric" placeholder="Si mides 1,68 escribe 168"></label>
       <label class="campo"><span>Nivel de actividad</span>
         <select id="p-actividad">
           <option value="1.2">Sedentario: trabajo sentado, sin ejercicio</option>
@@ -481,12 +478,10 @@ canvas{width:100%; height:auto; display:block}
           <option value="subir">Subir de peso</option>
         </select>
       </label>
-    </div>
-
-    <div class="tarjeta">
-      <h2>Plan nutricional</h2>
-      <div class="pequeno apagado" id="estado-plan" style="margin-bottom:12px"></div>
-      <button class="btn ancho" id="btn-plan-activar">Seguir el plan</button>
+      <button class="btn ancho principal" id="btn-guardar-perfil">Guardar cambios</button>
+      <div class="mini apagado" style="margin-top:8px; text-align:center">
+        Puedes volver aquí y cambiar estos datos cuando quieras.
+      </div>
     </div>
 
     <div class="tarjeta">
@@ -516,11 +511,6 @@ canvas{width:100%; height:auto; display:block}
 
     <div class="tarjeta">
       <h2>Análisis por foto</h2>
-      <label class="campo"><span>Servidor de análisis</span><input type="text" id="p-backend" autocomplete="off" spellcheck="false"></label>
-      <div class="fila" style="gap:8px">
-        <button class="btn" id="btn-probar-servidor">Probar conexión</button>
-        <span class="pequeno apagado" id="estado-servidor"></span>
-      </div>
       <div class="aviso" style="margin-bottom:0">
         Las calorías que estima una foto son <b>una referencia, no una medición</b>. La app
         siempre te deja corregir la cantidad antes de guardar, y ese ajuste es lo que hace
@@ -621,15 +611,6 @@ canvas{width:100%; height:auto; display:block}
   <div class="pie">
     <button class="btn ancho principal" id="por-guardar">Agregar al diario</button>
   </div>
-</div>
-
-<!-- ──────────────────────────── CAPA: MI PLAN ─────────────────────────── -->
-<div class="capa oculto" id="capa-plan">
-  <header>
-    <button class="icono-btn" id="plan-cerrar">✕</button>
-    <div class="marca">Mi plan</div>
-  </header>
-  <div class="contenido" id="plan-contenido"></div>
 </div>
 
 <!-- ─────────────────────── CAPA: ¿QUÉ PUEDO COMER? ─────────────────────── -->
@@ -949,128 +930,6 @@ function queAporta(por100){
     por100.kcal.toLocaleString('es-CO') + ' kcal por cada 100 g. ' + pesoDe(por100.kcal).apoyo + '.';
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   El plan nutricional de Andrés, tal como se lo entregó su entrenador.
-
-   Está armado por INTERCAMBIOS: en cada comida se elige una opción de cada
-   bloque, y todas las opciones de un bloque aportan lo mismo. Por eso cada
-   opción se guarda como un alimento de la base más unos gramos: así los macros
-   salen de la tabla y no de números escritos a mano que nadie podría revisar.
-
-   `objetivo` es lo que dice el plan que aporta ese bloque, para poder cotejarlo
-   con lo que sale de la base. Cuando no cuadra, manda el plan y se ve la
-   diferencia en pantalla.
-   ───────────────────────────────────────────────────────────────────────── */
-const PLAN = {
-  id:'stiveen-hipertrofia',
-  nombre:'Plan de hipertrofia',
-  autor:'Stiveen Gallego · Guarne, Antioquia',
-  objetivo:'Aumentar masa muscular · nivel intermedio · superávit',
-  meta:{kcal:2604, prot:120, carb:351, gras:80},
-  recomendaciones:[
-    'Bebe entre 2 y 3 litros de agua al día. Guíate por la sed y por el color de la orina.',
-    'No necesitas horarios fijos: lo importante es cubrir las porciones del día.',
-    'Prefiere las cocciones al vapor o hervidas.',
-    'Incluye una taza de vegetales variados en el almuerzo y en la cena.',
-    'Rota las fuentes y come frutas y vegetales de distintos colores.',
-    'Si no comes fruta, toma al menos 3 porciones de vegetales (un puñado es una porción).',
-    'Para los plaguicidas: remoja 15 minutos en agua con una cucharada de bicarbonato.',
-    'Suplementos, solo si no alcanzas tus requerimientos con la comida.',
-  ],
-  comidas:[
-    {comida:'desayuno', bloques:[
-      {tipo:'Proteína', objetivo:'una opción', opciones:[
-        {alimento:'Huevo cocido', gramos:110, texto:'2 huevos enteros'},
-        {alimento:'Clara de huevo pasteurizada', gramos:132, texto:'4 claras'},
-        {alimento:'Cuajada', gramos:100, texto:'100 g de cuajada o quesito (2 tajadas)'},
-        {alimento:'Pechuga de pollo a la plancha', gramos:130, texto:'130 g de pechuga (½ unidad grande)'},
-        {alimento:'Carne de res magra asada', gramos:138, texto:'138 g de carne de res'},
-      ]},
-      {tipo:'Carbohidratos', objetivo:'65 g de carbohidrato', opciones:[
-        {alimento:'Plátano maduro asado', gramos:175, texto:'175 g de plátano maduro (1 unidad mediana)'},
-        {alimento:'Arroz blanco cocido', gramos:224, texto:'224 g de arroz (10 cucharadas soperas)'},
-        {alimento:'Arepa antioqueña asada', gramos:159, texto:'159 g de arepa (1 unidad grande)'},
-        {alimento:'Papa cocida', gramos:310, texto:'310 g de papa cocida (3 unidades ½ medianas)'},
-        {alimento:'Avena en hojuelas cruda', gramos:97, texto:'97 g de avena (19 cucharadas soperas)'},
-      ]},
-    ]},
-    {comida:'media', bloques:[
-      {tipo:'Proteína', objetivo:'38 g de proteína', opciones:[
-        {alimento:'Proteína en polvo', gramos:44, texto:'44 g de whey (1 cucharada ½ dosificadora)'},
-      ]},
-      {tipo:'Fruta', objetivo:'20 g de carbohidrato', opciones:[
-        {alimento:'Banano', gramos:85, texto:'85 g de banano (1 unidad pequeña)'},
-        {alimento:'Feijoa', gramos:168, texto:'168 g de feijoa (4 unidades pequeñas)'},
-        {alimento:'Granadilla', gramos:172, texto:'172 g de granadilla (2 unidades medianas)'},
-        {alimento:'Kiwi', gramos:134, texto:'134 g de kiwi (2 pequeños o 1 grande)'},
-        {alimento:'Mango', gramos:117, texto:'117 g de mango (1 unidad pequeña)'},
-        {alimento:'Maracuyá', gramos:86, texto:'86 g de maracuyá (1 unidad mediana)'},
-        {alimento:'Naranja', gramos:169, texto:'169 g de naranja (1 unidad mediana)'},
-        {alimento:'Papaya', gramos:204, texto:'204 g de papaya (1 trozo grande)'},
-        {alimento:'Pera', gramos:132, texto:'132 g de pera (1 unidad pequeña)'},
-        {alimento:'Piña', gramos:161, texto:'161 g de piña (1 tajada gruesa)'},
-        {alimento:'Manzana', gramos:130, texto:'130 g de manzana (1 unidad pequeña)'},
-      ]},
-      {tipo:'Grasas', objetivo:'20 g de grasa', opciones:[
-        {alimento:'Nueces', gramos:36, texto:'36 g de nueces (4 cucharadas soperas)'},
-        {alimento:'Pistacho', gramos:44, texto:'44 g de pistacho (4 cucharadas soperas)'},
-        {alimento:'Almendras', gramos:36, texto:'36 g de almendras (4 cucharadas soperas)'},
-        {alimento:'Maní', gramos:40, texto:'40 g de maní sin sal (4 cucharadas soperas)'},
-        {alimento:'Avellana', gramos:36, texto:'36 g de avellana (24 unidades medianas)'},
-        {alimento:'Macadamia', gramos:24, texto:'24 g de macadamia (12 unidades medianas)'},
-      ]},
-    ]},
-    {comida:'almuerzo', bloques:[
-      {tipo:'Proteína', objetivo:'32 g de proteína', opciones:[
-        {alimento:'Trucha', gramos:151, texto:'151 g de trucha cocida (1 unidad mediana)'},
-        {alimento:'Salmón', gramos:160, texto:'160 g de salmón cocido (1 trozo grande)'},
-        {alimento:'Muslo o pierna de pollo asado', gramos:158, texto:'158 g de muslo sin piel (2 unidades medianas)'},
-        {alimento:'Pechuga de pollo a la plancha', gramos:138, texto:'138 g de pechuga sin piel (½ unidad grande)'},
-        {alimento:'Lomo de cerdo asado', gramos:149, texto:'149 g de lomo o cañón magro de cerdo'},
-        {alimento:'Carne de res magra asada', gramos:147, texto:'147 g de carne de res cocida'},
-      ]},
-      {tipo:'Carbohidratos', objetivo:'93 g de carbohidrato', opciones:[
-        {alimento:'Papa cocida', gramos:387, texto:'387 g de papa cocida (4 unidades ½ medianas)'},
-        {alimento:'Papa criolla cocida', gramos:497, texto:'497 g de papa criolla (14 unidades medianas)'},
-        {alimento:'Plátano maduro asado', gramos:254, texto:'254 g de plátano maduro (1 unidad mediana)'},
-        {alimento:'Yuca cocida', gramos:262, texto:'262 g de yuca (4 trozos medianos)'},
-        {alimento:'Fríjol cargamanto cocido', gramos:380, texto:'380 g de fríjol (3 cucharones ½)'},
-        {alimento:'Lentejas cocidas', gramos:465, texto:'465 g de lenteja (3 cucharones ½)'},
-        {alimento:'Garbanzo cocido', gramos:363, texto:'363 g de garbanzo (3 cucharones ½)'},
-        {alimento:'Arroz blanco cocido', gramos:322, texto:'322 g de arroz (13 cucharadas soperas)'},
-        {alimento:'Pasta cocida', gramos:455, texto:'455 g de pasta cocida (4 pocillos chocolateros)'},
-        {alimento:'Arepa antioqueña asada', gramos:232, texto:'232 g de arepa (2 unidades medianas)'},
-      ]},
-      {tipo:'Grasas', objetivo:'20 g de grasa', opciones:[
-        {alimento:'Aguacate', gramos:132, texto:'132 g de aguacate Hass (1 unidad entera)'},
-        {alimento:'Aguacate', gramos:128, texto:'128 g de aguacate común (½ unidad grande)'},
-        {alimento:'Semillas de calabaza', gramos:44, texto:'44 g de semillas de calabaza (4 cucharadas)'},
-        {alimento:'Semillas de girasol', gramos:40, texto:'40 g de semillas de girasol (4 cucharadas)'},
-        {alimento:'Semillas de ajonjolí', gramos:40, texto:'40 g de ajonjolí (4 cucharadas)'},
-      ]},
-      {tipo:'Vegetales', objetivo:'una taza, libre', opciones:[
-        {alimento:'Ensalada mixta sin aderezo', gramos:120, texto:'1 taza de vegetales variados'},
-      ]},
-    ]},
-    {comida:'onces', bloques:[
-      {tipo:'Proteína', objetivo:'8 g de proteína', opciones:[
-        {alimento:'Yogur griego natural', gramos:160, texto:'160 g de yogur griego natural (1 vaso)'},
-      ]},
-      {tipo:'Fruta', objetivo:'20 g de carbohidrato', opciones:'como en media mañana'},
-    ]},
-    {comida:'cena', bloques:'como en el almuerzo'},
-  ],
-};
-
-/** El plan del almuerzo y el de la cena son el mismo; la fruta se repite igual. */
-function bloquesDe(idComida){
-  const entrada = PLAN.comidas.find(c => c.comida === (idComida === 'cena' ? 'almuerzo' : idComida));
-  if(!entrada) return [];
-  return entrada.bloques.map(b => b.opciones === 'como en media mañana'
-    ? {...b, opciones: PLAN.comidas.find(c => c.comida === 'media').bloques.find(x => x.tipo === 'Fruta').opciones}
-    : b);
-}
-
 /* ═════════════════════════════ ESTADO ══════════════════════════════════ */
 
 const ESTADO_INICIAL = {
@@ -1079,7 +938,6 @@ const ESTADO_INICIAL = {
   registros:{},          // 'AAAA-MM-DD' -> [registro]
   pesos:[],              // [{fecha, valor}]
   propios:[],            // alimentos creados por el usuario
-  plan:{activo:false},   // si sigue el plan de intercambios de su entrenador
   cocina:{ingredientes:'', preferencias:''},  // lo último que escribió al pedir ideas
   ajustes:{tema:'auto', servidor:SERVIDOR_POR_DEFECTO, bienvenida:false},
 };
@@ -1107,7 +965,6 @@ function estructurar(datos){
     registros:datos.registros || {},
     pesos:Array.isArray(datos.pesos) ? datos.pesos : [],
     propios:Array.isArray(datos.propios) ? datos.propios : [],
-    plan:{...base.plan, ...(datos.plan||{})},
     cocina:{...base.cocina, ...(datos.cocina||{})},
     ajustes:{...base.ajustes, ...(datos.ajustes||{})},
   };
@@ -1189,6 +1046,16 @@ function calcularMeta(perfil){
   const carb = Math.max(0, Math.round((kcal - prot*4 - gras*9) / 4));
 
   return {kcal, prot, carb, gras};
+}
+
+/**
+ * Estatura en centímetros. Si alguien escribe 1,68 en vez de 168 —que es el error
+ * más natural del mundo— se corrige en vez de calcular una meta absurda.
+ */
+function enCentimetros(valor){
+  const n = Number(valor);
+  if(!Number.isFinite(n) || n <= 0) return null;
+  return n < 3 ? Math.round(n * 100) : Math.round(n);
 }
 
 /** La meta vigente: la calculada, o la que el usuario escribió a mano. */
@@ -1412,8 +1279,6 @@ function pintarInicio(){
   document.getElementById('titulo-comidas').textContent =
     fechaActual === hoy() ? 'Comidas de hoy' : 'Comidas del ' + nombreFecha(fechaActual).toLowerCase();
 
-  document.getElementById('btn-mi-plan').classList.toggle('oculto', !ESTADO.plan.activo);
-
   pintarComidas();
 }
 
@@ -1555,11 +1420,53 @@ async function recibirImagen(e){
   try{
     const grande = await reducirImagen(archivo, 1024, 0.82);
     const mini   = await reducirImagen(archivo, 420, 0.7);
-    analizarFoto(grande, mini);
+    pedirDescripcion(grande, mini);
   }catch(err){
     console.error(err);
     avisar('No se pudo leer la imagen.');
   }
+}
+
+/**
+ * Paso opcional entre la foto y el análisis: contar qué tiene el plato.
+ *
+ * Una foto no distingue si el arroz lleva mantequilla, si la carne es de res o
+ * de cerdo bajo la salsa, ni cuántas cucharadas hay debajo de lo que se ve. Un
+ * renglón escrito por quien sirvió el plato vale más que cualquier afinación del
+ * modelo, y por eso está aquí y no escondido. Se puede saltar: el botón de
+ * analizar funciona con el campo vacío.
+ */
+let ultimaFoto = {grande:null, mini:null};
+
+function pedirDescripcion(dataUrlGrande, dataUrlMini){
+  ultimaFoto = {grande:dataUrlGrande, mini:dataUrlMini};
+  abrirCapa('capa-revision');
+  document.getElementById('rev-titulo').textContent = 'Antes de analizar';
+  const pie = document.getElementById('rev-pie');
+  pie.style.flexDirection = '';
+
+  document.getElementById('rev-contenido').innerHTML =
+    '<img class="foto-grande" src="' + dataUrlMini + '" alt="">' +
+    '<label class="campo" style="margin-top:14px">' +
+      '<span>¿Qué tiene el plato y en qué cantidad? (opcional)</span>' +
+      '<textarea id="desc-plato" style="min-height:90px" ' +
+        'placeholder="Ej: arroz (unas 10 cucharadas), fríjoles con garra, dos tajadas de maduro y media pechuga"></textarea>' +
+    '</label>' +
+    '<div class="aviso" style="margin-top:0">Lo que escribas aquí <b>manda sobre lo que ve la foto</b>. ' +
+      'Sirve sobre todo para lo que no se distingue en una imagen: si el arroz lleva mantequilla, ' +
+      'cuántas cucharadas hay debajo, o de qué es el guiso. Si no quieres escribir nada, dale ' +
+      'a Analizar y listo.</div>';
+
+  pie.innerHTML =
+    '<button class="btn" id="desc-cancelar">Cancelar</button>' +
+    '<button class="btn principal" style="flex:1" id="desc-analizar">Analizar</button>';
+
+  document.getElementById('desc-cancelar').onclick = ()=> cerrarCapa('capa-revision');
+  document.getElementById('desc-analizar').onclick = ()=>{
+    const texto = (document.getElementById('desc-plato') || {}).value || '';
+    analizarFoto(dataUrlGrande, dataUrlMini, texto.trim());
+  };
+  setTimeout(()=>{ const c = document.getElementById('desc-plato'); if(c) c.focus(); }, 250);
 }
 document.getElementById('entrada-camara').onchange = recibirImagen;
 document.getElementById('entrada-galeria').onchange = recibirImagen;
@@ -1586,7 +1493,7 @@ function reducirImagen(archivo, ladoMaximo, calidad){
   });
 }
 
-async function analizarFoto(dataUrlGrande, dataUrlMini){
+async function analizarFoto(dataUrlGrande, dataUrlMini, descripcion){
   abrirCapa('capa-revision');
   document.getElementById('rev-titulo').textContent = 'Analizando';
   document.getElementById('rev-pie').style.flexDirection = '';
@@ -1619,7 +1526,7 @@ async function analizarFoto(dataUrlGrande, dataUrlMini){
     const respuesta = await fetch(servidor() + '/api/analizar-comida', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({imagen_base64: dataUrlGrande}),
+      body: JSON.stringify({imagen_base64: dataUrlGrande, descripcion: descripcion || ''}),
       signal: control.signal,
     });
     const cuerpo = await respuesta.json().catch(()=>null);
@@ -1692,12 +1599,15 @@ function errorDeAnalisis(titulo, detalle){
     '</div>';
   document.getElementById('rev-pie').style.flexDirection = '';
   document.getElementById('rev-pie').innerHTML =
+    (ultimaFoto.grande ? '<button class="btn" id="err-reintentar-misma">Reintentar</button>' : '') +
     '<button class="btn" id="err-reintentar">Otra imagen</button>' +
     '<button class="btn principal" style="flex:1" id="err-manual">Registrar a mano</button>';
   document.getElementById('err-reintentar').onclick = ()=>{
     cerrarCapa('capa-revision');
     pedirFoto();
   };
+  const otraVez = document.getElementById('err-reintentar-misma');
+  if(otraVez) otraVez.onclick = ()=> pedirDescripcion(ultimaFoto.grande, ultimaFoto.mini);
   document.getElementById('err-manual').onclick = ()=>{
     cerrarCapa('capa-revision');
     irA('buscar');
@@ -2333,121 +2243,6 @@ function linea(canvas, datos){
   ctx.fillText(nombreFecha(datos[datos.length-1].fecha), px(datos.length-1) - 10, alto - 7);
 }
 
-/* ══════════════════════════ MI PLAN ════════════════════════════════════ */
-
-/** Busca en la base el alimento con el que está enlazada una opción del plan. */
-function alimentoDeLaBase(nombre){
-  return ALIMENTOS.find(a => a.nombre === nombre) || null;
-}
-
-/** Convierte una opción del plan en un alimento listo para el diario. */
-function alimentoDeOpcion(opcion){
-  const base = alimentoDeLaBase(opcion.alimento);
-  if(!base) return null;
-  return crearAlimento({
-    nombre: base.nombre,
-    por100: base.por100,
-    medidas: base.medidas,
-    unidad: 'g',
-    cantidad: opcion.gramos,
-    gramos: opcion.gramos,
-  });
-}
-
-/** Porciones del plan que ya se registraron hoy, por comida y tipo de bloque. */
-function bloquesCumplidos(idComida){
-  const registros = registrosDe(fechaActual).filter(r => r.comida === idComida);
-  const nombres = new Set();
-  registros.forEach(r => r.alimentos.forEach(a => nombres.add(a.nombre)));
-  return nombres;
-}
-
-function abrirPlan(){
-  abrirCapa('capa-plan');
-  pintarPlan();
-}
-
-function pintarPlan(){
-  const caja = document.getElementById('plan-contenido');
-  const t = totalesDelDia(fechaActual);
-
-  let html =
-    '<div class="tarjeta">' +
-      '<h2 style="margin-bottom:2px">' + esc(PLAN.nombre) + '</h2>' +
-      '<div class="pequeno apagado">' + esc(PLAN.autor) + '</div>' +
-      '<div class="pequeno apagado" style="margin-top:6px">' + esc(PLAN.objetivo) + '</div>' +
-      '<div class="macros-linea" style="margin-top:12px">' +
-        '<span><b>' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal</b></span>' +
-        '<span><i style="background:var(--prot)"></i>P <b>' + PLAN.meta.prot + ' g</b></span>' +
-        '<span><i style="background:var(--carb)"></i>C <b>' + PLAN.meta.carb + ' g</b></span>' +
-        '<span><i style="background:var(--gras)"></i>G <b>' + PLAN.meta.gras + ' g</b></span>' +
-      '</div>' +
-      '<div class="aviso" style="margin-bottom:0">Hoy llevas <b>' + red(t.kcal).toLocaleString('es-CO') +
-        ' kcal</b> de las ' + PLAN.meta.kcal.toLocaleString('es-CO') + ' del plan.</div>' +
-    '</div>' +
-    '<div class="aviso">Tu plan funciona por <b>intercambios</b>: en cada comida eliges ' +
-      '<b>una</b> opción de cada bloque. Todas las de un mismo bloque aportan lo mismo, ' +
-      'así que se pueden cambiar entre sí sin rehacer cuentas.</div>';
-
-  COMIDAS.forEach(comida=>{
-    const bloques = bloquesDe(comida.id);
-    if(!bloques.length) return;
-    const yaHay = bloquesCumplidos(comida.id);
-
-    html += '<h2 style="font-size:14.5px; margin:20px 2px 4px">' + esc(comida.nombre) + '</h2>' +
-            '<div class="mini apagado" style="margin:0 2px 10px">Sugerido ' + comida.ventana + '</div>';
-
-    bloques.forEach((bloque, iBloque)=>{
-      const opciones = Array.isArray(bloque.opciones) ? bloque.opciones : [];
-      const cumplido = opciones.some(o => yaHay.has(o.alimento));
-      html +=
-        '<div class="bloque-plan">' +
-          '<div class="fila entre" style="margin-bottom:2px">' +
-            '<b style="font-size:13.5px">' + esc(bloque.tipo) + '</b>' +
-            (cumplido ? '<span class="chip alta">ya registrado</span>' : '') +
-          '</div>' +
-          '<div class="mini apagado" style="margin-bottom:8px">' + esc(bloque.objetivo) + '</div>' +
-          opciones.map((o,i)=>{
-            const alimento = alimentoDeOpcion(o);
-            const aporta = alimento ? aportaDe(alimento) : null;
-            return '<button class="opcion-plan" data-comida="' + comida.id + '" data-bloque="' + iBloque +
-              '" data-opcion="' + i + '"' + (alimento ? '' : ' disabled') + '>' +
-              '<span class="texto">' + esc(o.texto) + '</span>' +
-              (aporta ? '<span class="kcal">' + red(aporta.kcal) + ' kcal</span>' : '') +
-            '</button>';
-          }).join('') +
-        '</div>';
-    });
-  });
-
-  html += '<h2 style="font-size:14.5px; margin:22px 2px 10px">Recomendaciones del plan</h2>' +
-    '<div class="tarjeta"><ul style="margin:0; padding-left:18px">' +
-    PLAN.recomendaciones.map(r => '<li class="pequeno" style="margin-bottom:7px">' + esc(r) + '</li>').join('') +
-    '</ul></div>' +
-    '<div class="aviso">Las calorías de cada opción salen de la tabla de alimentos de la app, ' +
-      'no del documento: pueden diferir en unas pocas del papel. Si algo no coincide con tu ' +
-      'plan original, manda el plan.</div>';
-
-  caja.innerHTML = html;
-
-  caja.querySelectorAll('.opcion-plan').forEach(boton=>{
-    boton.onclick = ()=>{
-      const bloques = bloquesDe(boton.dataset.comida);
-      const opcion = bloques[Number(boton.dataset.bloque)].opciones[Number(boton.dataset.opcion)];
-      const alimento = alimentoDeOpcion(opcion);
-      if(!alimento) return;
-      comidaElegida = boton.dataset.comida;
-      cerrarCapa('capa-plan');
-      abrirRevision({
-        alimentos:[alimento],
-        comida: boton.dataset.comida,
-        notas:'',
-        fecha: fechaActual,
-      });
-    };
-  });
-}
-
 /* ═══════════════════════ ¿QUÉ PUEDO COMER? ═════════════════════════════ */
 
 /** Lo que queda del día: la meta menos lo registrado. */
@@ -2522,9 +2317,6 @@ function pintarIdeasInicio(){
     '<label class="campo"><span>Gustos o restricciones (opcional)</span>' +
       '<input type="text" id="ideas-preferencias" placeholder="Sin lactosa, rápido, sin freír…" value="' +
       esc(ESTADO.cocina.preferencias) + '"></label>' +
-    (ESTADO.plan.activo
-      ? '<div class="aviso">Las ideas se van a armar <b>con las porciones de tu plan</b>.</div>'
-      : '') +
     '<h2 style="font-size:14.5px; margin:20px 2px 10px">Mientras tanto, lo que cabe</h2>' +
     '<div id="ideas-locales"></div>';
 
@@ -2568,7 +2360,7 @@ async function pedirIdeas(){
     '<div class="cargando"><div class="giro"></div>' +
       '<div><b id="paso-ideas">Pensando qué te cabe…</b>' +
       '<div class="pequeno apagado" style="margin-top:4px">Con lo que queda de tu día' +
-      (ESTADO.plan.activo ? ' y las porciones de tu plan' : '') + '.</div></div></div>';
+      '.</div></div></div>';
 
   if(!navigator.onLine){
     errorDeIdeas('Sin conexión a internet.',
@@ -2593,7 +2385,6 @@ async function pedirIdeas(){
         restante, meta: metaVigente(), consumido: totalesDelDia(fechaActual),
         comida: (COMIDAS.find(c => c.id === comida) || {}).nombre || '',
         ingredientes, preferencias,
-        plan: ESTADO.plan.activo ? planComoTexto() : '',
       }),
       signal: control.signal,
     });
@@ -2617,25 +2408,6 @@ async function pedirIdeas(){
     avisos.forEach(clearTimeout);
     clearTimeout(corte);
   }
-}
-
-/** El plan en texto, que es como lo entiende el modelo. */
-function planComoTexto(){
-  const partes = [PLAN.nombre + ' — ' + PLAN.objetivo,
-    'Meta diaria: ' + PLAN.meta.kcal + ' kcal, ' + PLAN.meta.prot + ' g de proteína, ' +
-    PLAN.meta.carb + ' g de carbohidratos, ' + PLAN.meta.gras + ' g de grasa.',
-    'Funciona por intercambios: en cada comida se elige UNA opción de cada bloque.'];
-
-  COMIDAS.forEach(comida=>{
-    const bloques = bloquesDe(comida.id);
-    if(!bloques.length) return;
-    partes.push('\n' + comida.nombre.toUpperCase() + ':');
-    bloques.forEach(b=>{
-      const opciones = Array.isArray(b.opciones) ? b.opciones : [];
-      partes.push('  ' + b.tipo + ' (' + b.objetivo + '): ' + opciones.map(o => o.texto).join(' | '));
-    });
-  });
-  return partes.join('\n');
 }
 
 function errorDeIdeas(titulo, detalle){
@@ -2718,8 +2490,6 @@ function pintarIdeas(resultado, restante){
 }
 
 document.getElementById('btn-que-como').onclick = abrirIdeas;
-document.getElementById('btn-mi-plan').onclick = abrirPlan;
-document.getElementById('plan-cerrar').onclick = ()=> cerrarCapa('capa-plan');
 document.getElementById('ideas-cerrar').onclick = ()=> cerrarCapa('capa-ideas');
 
 /* ════════════════════════════ PERFIL ═══════════════════════════════════ */
@@ -2733,7 +2503,6 @@ function pintarPerfil(){
   document.getElementById('p-estatura').value = p.estatura ?? '';
   document.getElementById('p-actividad').value = String(p.actividad);
   document.getElementById('p-objetivo').value = p.objetivo;
-  document.getElementById('p-backend').value = ESTADO.ajustes.servidor;
 
   const meta = metaVigente();
   document.getElementById('p-meta-kcal').value = red(meta.kcal);
@@ -2754,30 +2523,7 @@ function pintarPerfil(){
     b.setAttribute('aria-pressed', b.dataset.tema === ESTADO.ajustes.tema);
   });
 
-  document.getElementById('estado-plan').innerHTML = ESTADO.plan.activo
-    ? 'Estás siguiendo el <b>' + esc(PLAN.nombre.toLowerCase()) + '</b> de ' + esc(PLAN.autor.split('·')[0].trim()) +
-      ': ' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal al día, por porciones intercambiables. ' +
-      'La meta de arriba la fija el plan.'
-    : 'Tienes cargado el <b>' + esc(PLAN.nombre.toLowerCase()) + '</b> de ' + esc(PLAN.autor.split('·')[0].trim()) +
-      ' (' + PLAN.meta.kcal.toLocaleString('es-CO') + ' kcal). Al seguirlo, la meta del día pasa a ser la suya ' +
-      'y aparece la pantalla “Mi plan” con las porciones de cada comida.';
-  document.getElementById('btn-plan-activar').textContent =
-    ESTADO.plan.activo ? 'Dejar de seguir el plan' : 'Seguir el plan';
 }
-
-document.getElementById('btn-plan-activar').onclick = ()=>{
-  if(ESTADO.plan.activo){
-    ESTADO.plan.activo = false;
-    ESTADO.meta.manual = false;      // vuelve a la meta calculada con sus datos
-  }else{
-    ESTADO.plan.activo = true;
-    // El plan trae sus propios números: se copian a la meta manual, que es la que
-    // manda sobre el cálculo automático.
-    ESTADO.meta = {manual:true, ...PLAN.meta};
-  }
-  guardar(); pintarPerfil(); pintarInicio();
-  avisar(ESTADO.plan.activo ? 'Siguiendo tu plan' : 'Plan desactivado');
-};
 
 function leerPerfil(){
   const p = ESTADO.perfil;
@@ -2785,7 +2531,7 @@ function leerPerfil(){
   p.edad = Number(document.getElementById('p-edad').value) || null;
   p.sexo = document.getElementById('p-sexo').value;
   p.peso = Number(document.getElementById('p-peso').value) || null;
-  p.estatura = Number(document.getElementById('p-estatura').value) || null;
+  p.estatura = enCentimetros(document.getElementById('p-estatura').value);
   p.actividad = Number(document.getElementById('p-actividad').value);
   p.objetivo = document.getElementById('p-objetivo').value;
   guardar();
@@ -2796,6 +2542,14 @@ function leerPerfil(){
 ['p-nombre','p-edad','p-sexo','p-peso','p-estatura','p-actividad','p-objetivo'].forEach(idCampo=>{
   document.getElementById(idCampo).onchange = leerPerfil;
 });
+
+document.getElementById('btn-guardar-perfil').onclick = ()=>{
+  leerPerfil();
+  const meta = metaVigente();
+  avisar(ESTADO.meta.manual
+    ? 'Datos guardados'
+    : 'Datos guardados · meta ' + red(meta.kcal).toLocaleString('es-CO') + ' kcal');
+};
 
 document.getElementById('btn-meta-modo').onclick = ()=>{
   if(ESTADO.meta.manual){
@@ -2816,30 +2570,7 @@ document.getElementById('btn-meta-modo').onclick = ()=>{
   };
 });
 
-document.getElementById('p-backend').onchange = (e)=>{
-  ESTADO.ajustes.servidor = e.target.value.trim().replace(/\/+$/,'') || SERVIDOR_POR_DEFECTO;
-  guardar();
-  document.getElementById('p-backend').value = ESTADO.ajustes.servidor;
-};
-
 function servidor(){ return ESTADO.ajustes.servidor || SERVIDOR_POR_DEFECTO; }
-
-document.getElementById('btn-probar-servidor').onclick = async ()=>{
-  const estado = document.getElementById('estado-servidor');
-  estado.textContent = 'Probando…';
-  try{
-    const r = await fetch(servidor() + '/health', {cache:'no-store'});
-    const j = await r.json();
-    const mio = j.apps && j.apps.nutrifoto;
-    estado.textContent = mio
-      ? (mio.modelos_disponibles > 0
-          ? 'Funcionando (' + mio.modelos_disponibles + ' de ' + mio.modelos_totales + ' modelos con cuota).'
-          : 'Conectado, pero hoy se agotó la cuota de análisis.')
-      : 'Responde, pero este servidor no tiene el análisis de comida instalado.';
-  }catch(e){
-    estado.textContent = 'No responde. Revisa la dirección o tu conexión.';
-  }
-};
 
 /* ── Copia de seguridad ───────────────────────────────────────────────── */
 
@@ -2982,7 +2713,7 @@ window.addEventListener('popstate', ()=>{
     history.pushState({capa:null}, '');
   }
 });
-['capa-revision','capa-porcion','capa-plan','capa-ideas'].forEach(idCapa=>{
+['capa-revision','capa-porcion','capa-ideas'].forEach(idCapa=>{
   new MutationObserver(()=>{
     if(!document.getElementById(idCapa).classList.contains('oculto')) history.pushState({capa:idCapa}, '');
   }).observe(document.getElementById(idCapa), {attributes:true, attributeFilter:['class']});
@@ -3015,7 +2746,7 @@ function mostrarBienvenida(){
         '<label class="campo"><span>Edad</span><input type="number" id="b-edad" inputmode="numeric"></label>' +
         '<label class="campo"><span>Sexo</span><select id="b-sexo"><option value="m">Masculino</option><option value="f">Femenino</option></select></label>' +
         '<label class="campo"><span>Peso (kg)</span><input type="number" id="b-peso" inputmode="decimal" step="0.1"></label>' +
-        '<label class="campo"><span>Estatura (cm)</span><input type="number" id="b-estatura" inputmode="numeric"></label>' +
+        '<label class="campo"><span>Estatura (cm)</span><input type="number" id="b-estatura" inputmode="numeric" placeholder="168"></label>' +
       '</div>' +
       '<label class="campo"><span>Nivel de actividad</span><select id="b-actividad">' +
         '<option value="1.2">Sedentario</option><option value="1.375">Ligero</option>' +
@@ -3035,7 +2766,7 @@ document.getElementById('bienvenida-listo').onclick = ()=>{
   ESTADO.perfil = {
     nombre: document.getElementById('b-nombre').value.trim(),
     edad: num('b-edad'), sexo: document.getElementById('b-sexo').value,
-    peso: num('b-peso'), estatura: num('b-estatura'),
+    peso: num('b-peso'), estatura: enCentimetros(document.getElementById('b-estatura').value),
     actividad: Number(document.getElementById('b-actividad').value),
     objetivo: document.getElementById('b-objetivo').value,
   };
